@@ -1,0 +1,22 @@
+[project]
+name = "nanoGBT"
+version = "0.1.0"
+description = "Language Modelling experiments on 19th-Century Romanesco sonnets."
+readme = "README.md"
+requires-python = ">=3.13"
+
+dependencies = [
+    "beautifulsoup4>=4.14.3",
+    "click>=8.1.8",
+    "requests>=2.32.5",
+    "torch>=2.9.1",
+    "wandb>=0.24.0",
+    "transformers>=4.57.6",
+    "ipywidgets>=8.1.8",
+    "jupyter>=1.1.1",
+    "widgetsnbextension>=4.0.15",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["common*", "char*", "subw*"]
