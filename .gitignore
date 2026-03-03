@@ -1,0 +1,26 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+unsloth_compiled_cache/
+_unsloth_temporary_saved_buffers/
+wandb/
+logs/
+
+models/
+
+*.txt
+*.bin
+*.json*
+*.parquet
+*.pt
+*.pth
+*.model
+*.safetensors
