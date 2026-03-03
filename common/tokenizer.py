@@ -10,7 +10,7 @@ class CharTokenizer:
         self.vocab_size = 0
 
         if vocab_path:
-            with open(vocab_path, "rb") as f:
+            with open(vocab_path, "r") as f:
                 vocab = json.load(f)
 
             self.special_tokens = vocab["special_tokens"]
@@ -21,10 +21,17 @@ class CharTokenizer:
     def encode(self, text: str):
         return [self.stoi[c] for c in text]
 
-    def decode(self, batch: list):
+    def decode(self, batch: list, skip_special_tokens: bool = True):
         if isinstance(batch, int):
             batch = [batch]
-        return "".join([self.itos[i] for i in batch])
+
+        tokens = (self.itos[i] for i in batch)
+
+        if skip_special_tokens:
+            special = set(self.special_tokens.values())
+            tokens = (tok for tok in tokens if tok not in special)
+
+        return "".join(tokens)
 
 
 class SubwordTokenizer:
@@ -32,7 +39,7 @@ class SubwordTokenizer:
         self.tokenizer = Tokenizer.from_file(tokenizer_path)
         self.vocab_size = self.tokenizer.get_vocab_size()
         self.special_tokens = {
-            "SOS": "<SONNET>",
+            "BOS": "<SONNET>",
             "SEP": "<STANZA>",
             "EOS": "<END>",
         }

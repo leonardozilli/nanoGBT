@@ -1,0 +1,23 @@
+model:
+  block_size: 512
+  n_embd: 384
+  n_head: 6
+  n_layer: 6
+  dropout: 0.3
+
+training:
+  batch_size: 64
+  learning_rate: 1e-3
+  weight_decay: 0.02
+  max_steps: 5000
+  warmup_steps: 100
+  early_stop_patience: 300
+  output_dir: "models/char/sonnets_only/"
+  checkpointing_steps: 1000
+  device: "cuda"
+  trace: true
+
+dataset:
+  dataset_name: char
+  data_dir: "data/encoded/char/sonnets/"
+  tokenizer_path: "data/encoded/char/sonnets/vocab.json"

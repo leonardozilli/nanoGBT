@@ -135,8 +135,6 @@ class GBT(nn.Module):
                     p, mean=0.0, std=0.02 / math.sqrt(2 * config.n_layer)
                 )
 
-        print(f"number of parameters: {self.get_num_params() / 1e6:.2f}M")
-
     def get_num_params(self):
         n_params = sum(p.numel() for p in self.parameters())
         return n_params
@@ -175,7 +173,7 @@ class GBT(nn.Module):
     def generate(
         self,
         idx,
-        max_new_tokens=1000,
+        max_new_tokens=256,
         temperature=1.0,
         top_k=None,
         top_p=None,

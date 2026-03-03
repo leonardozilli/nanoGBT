@@ -18,30 +18,39 @@ def train(
     train_config: TrainConfig,
     tokenizer: CharTokenizer | SubwordTokenizer,
     dataset_name: str,
-    data_path: str,
+    data_dir: str,
+    checkpoint: str | None = None,
+    sample_prompt: str | None = None,
     trace: bool = False,
 ):
     os.makedirs(train_config.output_dir, exist_ok=True)
 
-    model = GBT(model_config)
+    print(f"Loading data from {data_dir} for dataset {dataset_name}")
+
+    if checkpoint:
+        if not os.path.isfile(checkpoint):
+            raise FileNotFoundError(f"Checkpoint not found: {checkpoint}")
+        print(f"Loading checkpoint from {checkpoint}")
+        model = GBT.from_pretrained(checkpoint)
+    else:
+        model = GBT(model_config)
+
     model = model.to(model_config.device)
     model = torch.compile(model)
     model = cast(GBT, model)
-
-    print(f"Loading data from {data_path} for dataset {dataset_name}")
 
     train_loader = train_utils.DataLoader(
         B=train_config.batch_size,
         T=model_config.block_size,
         device=model_config.device,
-        data_path=data_path,
+        data_dir=data_dir,
         split="train",
     )
     val_loader = train_utils.DataLoader(
         B=train_config.batch_size,
         T=model_config.block_size,
         device=model_config.device,
-        data_path=data_path,
+        data_dir=data_dir,
         split="val",
     )
 
@@ -123,10 +132,27 @@ def train(
                 break
 
         if step % 500 == 0:
-            generated_text = train_utils.sample(model, tokenizer, model_config)
+            generated_text = train_utils.sample(
+                model,
+                tokenizer,
+                model_config,
+                prompt=sample_prompt
+                if sample_prompt
+                else tokenizer.special_tokens["BOS"],
+            )
             if trace and generations_table is not None:
                 generations_table.add_data(step, val_loss, generated_text)
                 wandb.log({"generations": generations_table}, step=step)
+
+        if step % train_config.checkpointing_steps == 0:
+            train_utils.save_model(
+                model,
+                optimizer,
+                val_loss,
+                model_config,
+                step,
+                train_config.output_dir,
+            )
 
         model.train()
         optimizer.zero_grad()
@@ -176,7 +202,10 @@ def train(
         "best_val_loss": best_val_loss,
         "steps_completed": step,
         "M_params": model.get_num_params() / 1e6,
+        "training_time_S": time.time() - time_start,
     }
+    if checkpoint:
+        metadata["checkpoint"] = checkpoint
     train_utils.save_model(model, optimizer, val_loss, model_config, step, run_dir)
     with open(os.path.join(run_dir, "metadata.json"), "w") as f:
         json.dump(metadata, f, indent=2)

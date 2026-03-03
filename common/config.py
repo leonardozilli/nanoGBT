@@ -15,10 +15,12 @@ class GBTConfig:
 
 @dataclass
 class TrainConfig:
+    checkpoint: str | None = None
     batch_size: int = 64
     learning_rate: float = 5e-4
     max_steps: int = 1000
     warmup_steps: int = 100
     weight_decay: float = 0.01
     early_stop_patience: int = 500
+    checkpointing_steps: int = 500
     output_dir: str = "models/"

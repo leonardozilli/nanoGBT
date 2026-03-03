@@ -10,16 +10,17 @@ from common.model import GBT
 
 
 class DataLoader:
-    def __init__(self, B, T, device, data_path, split="train"):
+    def __init__(
+        self, B: int, T: int, device: str, data_dir: str, split: str = "train"
+    ):
         self.B = B
         self.T = T
         self.device = device
         self.current_position = 0
 
-        self.tokens = np.fromfile(
-            os.path.join(data_path, f"{split}.bin"), dtype=np.uint16
-        )
-        print(f"loaded {len(self.tokens)} {split} tokens from {data_path}")
+        file_path = os.path.join(data_dir, f"{split}.bin")
+        self.tokens = np.memmap(file_path, dtype=np.uint16, mode="r")
+        print(f"loaded {len(self.tokens)} {split} tokens from {data_dir}")
 
         self.reset()
 
@@ -34,7 +35,9 @@ class DataLoader:
 
         buf = (
             torch.from_numpy(
-                self.tokens[self.current_position : self.current_position + B * T + 1]
+                self.tokens[
+                    self.current_position : self.current_position + B * T + 1
+                ].copy()
             )
             .to(self.device)
             .long()
@@ -47,9 +50,9 @@ class DataLoader:
         return x, y
 
 
-def get_lr(step, config: TrainConfig):
+def get_lr(step: int, config: TrainConfig):
     lr_max = config.learning_rate
-    lr_min = 0.2 * lr_max  # 20% of max
+    lr_min = 0.1 * lr_max  # 10% of max
 
     if step < config.warmup_steps:
         # linear warmupt 0 -> lr_max
@@ -71,10 +74,10 @@ def sample(
 ):
     model.eval()
     try:
-        sos_token = tokenizer.special_tokens["SOS"]
+        bos_token = tokenizer.special_tokens["BOS"]
     except KeyError:
-        sos_token = prompt
-    input_ids = tokenizer.encode(sos_token)
+        bos_token = prompt
+    input_ids = tokenizer.encode(bos_token)
     if hasattr(input_ids, "ids"):
         input_ids = input_ids.ids
 
@@ -117,5 +120,5 @@ def save_model(model, optimizer, val_loss, model_config, step, output_dir):
             "loss": val_loss,
             "config": model_config.__dict__,
         },
-        output_dir / f"checkpoint_{step}_{val_loss:.4f}.pt",
+        output_dir / f"checkpoint_{step}.pt",
     )
