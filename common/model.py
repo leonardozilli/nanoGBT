@@ -9,6 +9,52 @@ from torch.nn.functional import scaled_dot_product_attention
 from common.config import GBTConfig
 
 
+class RoPE(nn.Module):
+    def __init__(self, d: int, base: int = 10_000):
+        super().__init__()
+        self.base = base
+        self.d = d
+        self.register_buffer("cos_cached", None, persistent=False)
+        self.register_buffer("sin_cached", None, persistent=False)
+
+    def build_cache(self, seq_len, device):
+        if self.cos_cached is not None and seq_len <= self.cos_cached.shape[2]:
+            return
+
+        theta = 1.0 / (
+            self.base ** (torch.arange(0, self.d, 2, device=device).float() / self.d)
+        )
+
+        seq_idx = torch.arange(seq_len, device=device).float()
+        idx_theta = torch.einsum("i,j->ij", seq_idx, theta)
+        idx_theta2 = torch.cat([idx_theta, idx_theta], dim=-1)
+
+        self.cos_cached = idx_theta2.cos()[None, None, :, :]
+        self.sin_cached = idx_theta2.sin()[None, None, :, :]
+
+    def rotate_half(self, x):
+        d_2 = self.d // 2
+
+        x1 = x[..., :d_2]
+        x2 = x[..., d_2:]
+
+        return torch.cat((-x2, x1), dim=-1)
+
+    def forward(self, q, k):
+        seq_len = q.shape[2]
+        device = q.device
+
+        self.build_cache(seq_len, device)
+
+        cos = self.cos_cached[:, :, :seq_len, :]  # (1, 1, T, d)
+        sin = self.sin_cached[:, :, :seq_len, :]  # (1, 1, T, d)
+
+        q = (q * cos) + (self.rotate_half(q) * sin)  # (B, nh, T, hs)
+        k = (k * cos) + (self.rotate_half(k) * sin)  # (B, nh, T, hs)
+
+        return q, k
+
+
 class MultiHeadAttention(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -19,6 +65,7 @@ class MultiHeadAttention(nn.Module):
         self.c_proj = nn.Linear(config.n_embd, config.n_embd, bias=False)
         self.c_proj_dropout = nn.Dropout(config.dropout)
         self.flash = hasattr(torch.nn.functional, "scaled_dot_product_attention")
+        self.rope = RoPE(config.n_embd // config.n_head)
         if not self.flash:
             # if flash attn is not available, create the mask manually
             print("Flash attention not available.")
@@ -43,6 +90,8 @@ class MultiHeadAttention(nn.Module):
             1, 2
         )  # (B, nh, T, hs)
 
+        q, k = self.rope(q, k)
+
         if self.flash:
             y = scaled_dot_product_attention(
                 q, k, v, attn_mask=None, dropout_p=self.attn_dropout.p, is_causal=True
@@ -57,7 +106,7 @@ class MultiHeadAttention(nn.Module):
 
         y = (
             y.transpose(1, 2).contiguous().view(B, T, C)
-        )  # re-assemble all head outputs side by side
+        )  # re-assemble all head outputs side by side (B, T, C)
         y = self.c_proj_dropout(self.c_proj(y))
 
         return y
@@ -76,11 +125,10 @@ class SwiGLU(nn.Module):
 class MLP(nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.exp = nn.Linear(config.n_embd, 4 * config.n_embd, bias=False)
-        # self.gelu = nn.GELU()
+        self.h_dim = int(8 / 3 * config.n_embd)
+        self.exp = nn.Linear(config.n_embd, 2 * self.h_dim, bias=False)
         self.lu = SwiGLU()
-        # self.c_proj = nn.Linear(4 * config.n_embd, config.n_embd, bias=False)
-        self.c_proj = nn.Linear(2 * config.n_embd, config.n_embd, bias=False)
+        self.c_proj = nn.Linear(self.h_dim, config.n_embd, bias=False)
         self.dropout = nn.Dropout(config.dropout)
 
     def forward(self, x):
@@ -100,10 +148,15 @@ class Block(nn.Module):
         self.attn = MultiHeadAttention(config)
         self.rms_2 = nn.RMSNorm(config.n_embd, eps=1e-6)
         self.mlp = MLP(config)
+        self.scale = 1 / math.sqrt(2 * config.n_layer)  # residual scaling
 
     def forward(self, x):
-        x = x + self.attn(self.rms_1(x))
-        x = x + self.mlp(self.rms_2(x))
+        attn_out = self.attn(self.rms_1(x))
+        mlp_out = self.mlp(self.rms_2(x))
+
+        x = x + self.scale * attn_out
+        x = x + self.scale * mlp_out
+
         return x
 
 
@@ -117,7 +170,7 @@ class GBT(nn.Module):
         self.transformer = nn.ModuleDict(
             {
                 "wte": nn.Embedding(config.vocab_size, config.n_embd),
-                "wpe": nn.Embedding(config.block_size, config.n_embd),
+                # "wpe": nn.Embedding(config.block_size, config.n_embd),
                 "drop": nn.Dropout(config.dropout),
                 "h": nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
                 "rms_f": nn.RMSNorm(config.n_embd, eps=1e-6),
@@ -150,12 +203,9 @@ class GBT(nn.Module):
 
     def forward(self, idx, targets=None):
         B, T = idx.shape
-        pos = torch.arange(0, T, device=idx.device)
-
-        pos_emb = self.transformer["wpe"](pos)
         tok_emb = self.transformer["wte"](idx)
-        x = self.transformer["drop"](tok_emb + pos_emb)
-        for block in self.transformer["h"]:  # type: ignore
+        x = self.transformer["drop"](tok_emb)
+        for block in self.transformer["h"]:
             x = block(x)
         x = self.transformer["rms_f"](x)
         logits = self.lm_head(x)  # (B, T, vocab_size)
@@ -173,7 +223,7 @@ class GBT(nn.Module):
     def generate(
         self,
         idx,
-        max_new_tokens=256,
+        max_new_tokens=512,
         temperature=1.0,
         top_k=None,
         top_p=None,

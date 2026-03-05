@@ -43,7 +43,7 @@ The raw sonnets are prepared for training by cleaning out orthographic noise (e.
 
 ## Model Architecture
 
-The models trained from scratch use a decoder-only transformer [architecture](./common/model.py), inspired by [nanoGPT](https://github.com/karpathy/nanoGPT)'s implementation of GPT-2, but modernized to use SwiGLU activations and RMSNorm layers.
+The models trained from scratch use a decoder-only transformer [architecture](./common/model.py), inspired by [nanoGPT](https://github.com/karpathy/nanoGPT)'s implementation of GPT-2, but modernized to use RoPE, SwiGLU activation with ~8/3 expansion, residual scaling and RMSNorm.
 
 ## Sampling CLI
 
