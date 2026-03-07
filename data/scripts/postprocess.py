@@ -7,6 +7,7 @@ Clean and process raw sonnets, adding special tokens:
 
 import os
 import re
+import unicodedata
 from pathlib import Path
 
 import click
@@ -44,7 +45,6 @@ def clean_text(text):
 
 
 def check_structure(text: str) -> bool:
-    """Checks if text matches standard sonnet stanza structure."""
     stanzas = re.split(r"\n\s*\n", text.strip())
     counts = [len(s.split("\n")) for s in stanzas if s.strip()]
     if len(counts) < 4:
@@ -54,6 +54,57 @@ def check_structure(text: str) -> bool:
     if not all(c == 3 for c in counts[2:]):
         return False
     return True
+
+
+def _normalize_word(word: str):
+    clean_word = re.sub(r"[^\w\s\']", "", word).lower()
+    clean_word = unicodedata.normalize("NFD", clean_word)
+    return "".join(c for c in clean_word if unicodedata.category(c) != "Mn")
+
+
+def extract_rhyme_suffix(word: str, max_rhyme_length: int = 2):
+    clean_word = _normalize_word(word)
+    if not clean_word:
+        return ""
+
+    vowels = "aeiou"
+    for i in range(len(clean_word) - 1, -1, -1):
+        if clean_word[i] in vowels:
+            rhyme = clean_word[i:]
+            return rhyme[-max_rhyme_length:] if len(rhyme) > max_rhyme_length else rhyme
+
+    return (
+        clean_word[-max_rhyme_length:]
+        if len(clean_word) >= max_rhyme_length
+        else clean_word
+    )
+
+
+def tag_sonnet_rhymes(text, max_rhyme_length=2):
+    lines = text.split("\n")
+    rhyme_map = {}
+    current_char = 65
+    tagged_lines = []
+
+    for line in lines:
+        if not line.strip() or line.strip().startswith("<"):
+            tagged_lines.append(line)
+            continue
+
+        words = line.split()
+        last_word = words[-1]
+        suffix = extract_rhyme_suffix(last_word, max_rhyme_length=max_rhyme_length)
+
+        if suffix not in rhyme_map:
+            rhyme_map[suffix] = chr(current_char)
+            current_char += 1
+
+        rhyme_letter = rhyme_map[suffix]
+
+        tagged_line = f"{line} <RHYME_{rhyme_letter}>"
+        tagged_lines.append(tagged_line)
+
+    return "\n".join(tagged_lines)
 
 
 @click.command()
@@ -76,7 +127,22 @@ def check_structure(text: str) -> bool:
     is_flag=True,
     help="Include the title in the processed output.",
 )
-def main(data_dir: Path, out_dir: Path, include_title: bool):
+@click.option(
+    "--mark-rhymes", is_flag=True, help="Mark rhyming words with special tokens"
+)
+@click.option(
+    "--rhyme-length",
+    default=2,
+    show_default=True,
+    help="Number of characters to consider for rhyme detection",
+)
+def main(
+    data_dir: Path,
+    out_dir: Path,
+    include_title: bool,
+    mark_rhymes: bool,
+    rhyme_length: int,
+):
     out_dir.mkdir(parents=True, exist_ok=True)
 
     filenames = sorted(fn for fn in os.listdir(data_dir) if fn.endswith(".txt"))
@@ -92,6 +158,8 @@ def main(data_dir: Path, out_dir: Path, include_title: bool):
                 title = filename.replace(".txt", "")
                 text = f"<TITLE>{title}</TITLE>\n\n{text}"
             text = "<SONNET>\n" + text + "\n<END>"
+            if mark_rhymes:
+                text = tag_sonnet_rhymes(text, max_rhyme_length=rhyme_length)
 
         with open(out_dir / filename, "w", encoding="utf-8") as f:
             f.write(text)

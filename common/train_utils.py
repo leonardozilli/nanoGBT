@@ -1,3 +1,4 @@
+import logging
 import math
 import os
 from pathlib import Path
@@ -5,8 +6,11 @@ from pathlib import Path
 import numpy as np
 import torch
 
+import wandb
 from common.config import GBTConfig, TrainConfig
 from common.model import GBT
+
+logger = logging.getLogger(__name__)
 
 
 class DataLoader:
@@ -20,7 +24,7 @@ class DataLoader:
 
         file_path = os.path.join(data_dir, f"{split}.bin")
         self.tokens = np.memmap(file_path, dtype=np.uint16, mode="r")
-        print(f"loaded {len(self.tokens)} {split} tokens from {data_dir}")
+        logger.info(f"loaded {len(self.tokens)} {split} tokens from {data_dir}")
 
         self.reset()
 
@@ -84,7 +88,7 @@ def sample(
     context = torch.tensor([input_ids], dtype=torch.long, device=config.device)
     pred = model.generate(context, max_new_tokens=max_new_tokens)
     generated_text = tokenizer.decode(pred[0].tolist(), skip_special_tokens=False)
-    print(generated_text)
+    logger.info(f"Generated text: {generated_text}")
 
     return generated_text
 
@@ -105,9 +109,10 @@ def eval(model: GBT, val_loader: DataLoader, step: int, config: GBTConfig):
             val_losses.append(loss.item())
 
         val_loss = np.mean(val_losses)
-        print(f"step {step}: val loss {val_loss}")
+        perplexity = math.exp(val_loss)
+        logger.info(f"step {step}: val loss {val_loss}, perplexity {perplexity:.2f}")
 
-        return val_loss
+        return val_loss, perplexity
 
 
 def save_model(model, optimizer, val_loss, model_config, step, output_dir):
@@ -122,3 +127,47 @@ def save_model(model, optimizer, val_loss, model_config, step, output_dir):
         },
         output_dir / f"checkpoint_{step}.pt",
     )
+
+
+def init_wandb(train_cfg, model_cfg, model, dataset_name, tokenizer):
+    run = wandb.init(
+        project="nanoGBT2",
+        job_type="train",
+        notes=train_cfg.notes,
+        config={
+            "architecture": "GBT",
+            "dataset": dataset_name,
+            "learning_rate": train_cfg.learning_rate,
+            "batch_size": train_cfg.batch_size,
+            "block_size": model_cfg.block_size,
+            "n_layer": model_cfg.n_layer,
+            "n_head": model_cfg.n_head,
+            "n_embd": model_cfg.n_embd,
+            "dropout": model_cfg.dropout,
+            "weight_decay": train_cfg.weight_decay,
+            "max_steps": train_cfg.max_steps,
+            "warmup_steps": train_cfg.warmup_steps,
+            "M_params": model.get_num_params() / 1e6,
+            "vocab_size": model_cfg.vocab_size,
+            "tokenizer_type": tokenizer.kind,
+        },
+        dir=train_cfg.output_dir,
+    )
+    wandb.watch(model, log="all", log_freq=500)
+    return run
+
+
+def setup_logging(log_file: str):
+    for handler in logging.root.handlers[:]:
+        logging.root.removeHandler(handler)
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(message)s",
+        handlers=[
+            logging.FileHandler(log_file),
+            logging.StreamHandler(),
+        ],
+    )
+
+    return logging.getLogger(__name__)

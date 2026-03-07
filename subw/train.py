@@ -1,90 +1,80 @@
-import click
+import sys
+from pathlib import Path
 
+SCRIPT_DIR = str(Path(__file__).resolve().parent)
+if SCRIPT_DIR in sys.path:
+    sys.path.remove(SCRIPT_DIR)
+
+# ruff: noqa: E402
+import os
+
+import hydra
+from hydra.core.hydra_config import HydraConfig
+from omegaconf import DictConfig
+
+import common.train_utils as train_utils
 from common.config import GBTConfig, TrainConfig
-from common.tokenizer import SubwordTokenizer
+from common.tokenizer import load_tokenizer
 from common.trainer import train
 
 
-@click.command()
-@click.option("--block-size", type=int, default=256, help="Block size for the model")
-@click.option("--n-embd", type=int, default=368, help="Embedding dimension")
-@click.option("--n-head", type=int, default=4, help="Number of attention heads")
-@click.option("--n-layer", type=int, default=4, help="Number of transformer layers")
-@click.option("--dropout", type=float, default=0.35, help="Dropout rate")
-@click.option("--batch-size", type=int, default=32, help="Batch size for training")
-@click.option("--learning-rate", type=float, default=3e-4, help="Max learning rate")
-@click.option("--weight-decay", type=float, default=0.05, help="Weight decay")
-@click.option("--max-steps", type=int, default=8000, help="Maximum training steps")
-@click.option("--warmup-steps", type=int, default=400, help="Warmup steps")
-@click.option(
-    "--early-stop-patience",
-    type=int,
-    default=300,
-    help="Early stopping patience (steps)",
-)
-@click.option(
-    "--output-dir",
-    type=str,
-    default="models/subw/",
-    help="Output directory for checkpoints",
-)
-@click.option(
-    "--checkpoint-steps",
-    type=int,
-    default=1000,
-    help="Checkpointing frequency (steps)",
-)
-@click.option("--device", type=str, default="cuda", help="Device to use (cuda or cpu)")
-@click.option("--trace", is_flag=True, default=True, help="Enable wandb tracing")
-def train_command(
-    block_size,
-    n_embd,
-    n_head,
-    n_layer,
-    dropout,
-    batch_size,
-    learning_rate,
-    weight_decay,
-    max_steps,
-    warmup_steps,
-    early_stop_patience,
-    output_dir,
-    device,
-    trace,
-    checkpoint_steps,
-):
-    tokenizer = SubwordTokenizer("data/encoded/subw/tokenizer.json")
+@hydra.main(config_path="configs", config_name=None, version_base="1.3")
+def main(cfg: DictConfig):
+    hydra_output_dir = HydraConfig.get().runtime.output_dir
+    log_file = os.path.join(hydra_output_dir, "train.log")
+
+    train_utils.setup_logging(log_file)
+
+    tokenizer = load_tokenizer(Path(cfg.tokenizer.tokenizer_path), cfg.tokenizer.type)
 
     model_config = GBTConfig(
-        block_size=block_size,
-        n_embd=n_embd,
-        n_head=n_head,
-        n_layer=n_layer,
+        block_size=cfg.model.block_size,
+        n_embd=cfg.model.n_embd,
+        n_head=cfg.model.n_head,
+        n_layer=cfg.model.n_layer,
         vocab_size=tokenizer.vocab_size,
-        dropout=dropout,
+        dropout=cfg.model.dropout,
+        device=cfg.training.device,
     )
-    model_config.device = device
 
     train_config = TrainConfig(
-        batch_size=batch_size,
-        learning_rate=learning_rate,
-        max_steps=max_steps,
-        warmup_steps=warmup_steps,
-        early_stop_patience=early_stop_patience,
-        output_dir=output_dir,
-        weight_decay=weight_decay,
-        checkpointing_steps=checkpoint_steps,
+        checkpoint=cfg.get("checkpoint", None),
+        batch_size=cfg.training.batch_size,
+        learning_rate=cfg.training.learning_rate,
+        max_steps=cfg.training.max_steps,
+        warmup_steps=cfg.training.warmup_steps,
+        early_stop_patience=cfg.training.early_stop_patience,
+        output_dir=hydra_output_dir,
+        weight_decay=cfg.training.weight_decay,
+        checkpointing_steps=cfg.training.checkpointing_steps,
+        notes=cfg.notes,
+    )
+
+    train_loader = train_utils.DataLoader(
+        B=cfg.training.batch_size,
+        T=cfg.model.block_size,
+        device=cfg.training.device,
+        data_dir=cfg.data_dir,
+        split="train",
+    )
+    val_loader = train_utils.DataLoader(
+        B=cfg.training.batch_size,
+        T=cfg.model.block_size,
+        device=cfg.training.device,
+        data_dir=cfg.data_dir,
+        split="val",
     )
 
     train(
         model_config=model_config,
         train_config=train_config,
         tokenizer=tokenizer,
-        dataset_name="subword",
-        data_path="data/encoded/subw/",
-        trace=trace,
+        train_loader=train_loader,
+        val_loader=val_loader,
+        dataset_name=cfg.dataset.name,
+        trace=cfg.training.trace,
     )
 
 
 if __name__ == "__main__":
-    train_command()
+    main()

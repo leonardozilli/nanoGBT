@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+
 import torch
 
 
@@ -24,3 +25,4 @@ class TrainConfig:
     early_stop_patience: int = 500
     checkpointing_steps: int = 500
     output_dir: str = "models/"
+    notes: str = ""

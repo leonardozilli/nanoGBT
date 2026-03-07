@@ -1,0 +1,4 @@
+name: bpe
+type: bpe
+
+tokenizer_path: ${data_dir}/tokenizer.json

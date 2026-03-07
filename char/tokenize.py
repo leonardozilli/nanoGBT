@@ -16,11 +16,29 @@ from tqdm import tqdm
 
 from common.tokenizer import CharTokenizer
 
-
 SPECIAL_TOKEN_MAP = {
     "<SONNET>": "¶",  # bos
     "\n\n<STANZA>\n\n": "\n\n",  # sep
     "<END>": "§",  # eos
+    "<RHYME_A>": "Ⓐ",
+    "<RHYME_B>": "Ⓑ",
+    "<RHYME_C>": "Ⓒ",
+    "<RHYME_D>": "Ⓓ",
+    "<RHYME_E>": "Ⓔ",
+    "<RHYME_F>": "Ⓕ",
+    "<RHYME_G>": "Ⓖ",
+    "<RHYME_H>": "Ⓗ",
+    "<RHYME_I>": "Ⓘ",
+    "<RHYME_J>": "Ⓙ",
+    "<RHYME_K>": "Ⓚ",
+    "<RHYME_L>": "Ⓛ",
+    "<RHYME_M>": "Ⓜ",
+    "<RHYME_N>": "Ⓝ",
+    "<RHYME_O>": "Ⓞ",
+    "<RHYME_P>": "Ⓟ",
+    "<RHYME_Q>": "Ⓠ",
+    "<RHYME_R>": "Ⓡ",
+    "<RHYME_S>": "Ⓢ",
 }
 
 
@@ -193,6 +211,14 @@ def main(sonnet_dir, pretrain_data, out_dir):
             "EOS": SPECIAL_TOKEN_MAP["<END>"],
         },
     }
+
+    vocab["special_tokens"].update(  # type: ignore[possibly-missing-attribute]
+        {
+            token: char
+            for token, char in SPECIAL_TOKEN_MAP.items()
+            if token.startswith("<RHYME_")
+        }
+    )
 
     with open(os.path.join(out_dir, "vocab.json"), "w", encoding="utf-8") as f:
         json.dump(vocab, f, ensure_ascii=False, indent=4)

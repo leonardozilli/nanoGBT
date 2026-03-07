@@ -1,0 +1,4 @@
+name: unigram
+type: unigram
+
+tokenizer_path: ${data_dir}/tokenizer.json

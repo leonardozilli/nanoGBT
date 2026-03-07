@@ -1,0 +1,3 @@
+name: sonnets_char_finetune
+data_dir: "data/encoded/char/pretrain/sonnets"
+tokenizer_path: "data/encoded/char/pretrain/vocab.json"

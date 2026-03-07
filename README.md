@@ -10,36 +10,36 @@ Three training approaches are implemented:
 ---
 
 ## Dataset
-Giuseppe Gioachino Belli (1791‒1863) wrote 2279 sonnets portraying everyday life and customs of 19th-century Rome, written almost entirely in the local Romanesco dialect. These sonnets mostly follow a consistent structure of 14 hendecasyllabic lines divided into two quatrains and two tercets, typically with an ABBA ABBA CDC DCD rhyming scheme. 
-The main data used for training consists of this collection, with two sonnets removed due to being in dialogue format. 
+Giuseppe Gioachino Belli (1791‒1863) wrote 2279 sonnets portraying everyday life and customs of 19th-century Rome, written almost entirely in the local Romanesco dialect. These sonnets mostly follow a consistent structure of 14 hendecasyllabic lines divided into two quatrains and two tercets, typically with an ABBA ABBA CDC DCD rhyming scheme.
+The main data used for training consists of this collection, with two sonnets removed due to being in dialogue format.
 
 The raw sonnets are prepared for training by cleaning out orthographic noise (e.g. diacritics variants, editorial annotations, OCR errors), and marked to include special structural tokens:
 
 > *\<SONNET>*  
-> *Cuattro angioloni co le tromme in bocca*  
-> *se metteranno uno pe cantone*  
-> *a ssonà: poi co ttanto de voscione*  
-> *cominceranno a ddì: ffora a cchi ttocca.*  
+> *Cuattro angioloni co le tromme in bocca <RHYME_A>*  
+> *se metteranno uno pe cantone <RHYME_B>*  
+> *a ssonà: poi co ttanto de voscione <RHYME_B>*  
+> *cominceranno a ddì: ffora a cchi ttocca. <RHYME_A>*  
 >  
 > *\<STANZA>*  
 >  
-> *Allora vierà ssù una filastrocca*  
-> *de schertri da la terra a ppecorone,*  
-> *pe rripijjà ffigura de perzone,*  
-> *come purcini attorno de la bbiocca.*  
+> *Allora vierà ssù una filastrocca <RHYME_A>*  
+> *de schertri da la terra a ppecorone, <RHYME_B>*  
+> *pe rripijjà ffigura de perzone, <RHYME_B>*  
+> *come purcini attorno de la bbiocca. <RHYME_A>*  
 >  
 > *\<STANZA>*  
 >  
-> *E sta bbiocca sarà ddio bbenedetto,*  
-> *che ne farà du’ parte, bbianca, e nnera:*  
-> *una pe annà in cantina, una sur tetto.*  
+> *E sta bbiocca sarà ddio bbenedetto, <RHYME_C>*  
+> *che ne farà du’ parte, bbianca, e nnera: <RHYME_D>*  
+> *una pe annà in cantina, una sur tetto. <RHYME_C>*  
 >  
 > *\<STANZA>*  
 >  
-> *All’urtimo usscirà ’na sonajjera*  
-> *d’Angioli, e, ccome si ss’annassi a lletto,*  
-> *smorzeranno li lumi, e bbona sera.*  
-> *\<END>*
+> *All’urtimo usscirà ’na sonajjera <RHYME_D>*  
+> *d’Angioli, e, ccome si ss’annassi a lletto, <RHYME_C>*  
+> *smorzeranno li lumi, e bbona sera. <RHYME_D>*  
+> *\<END>*  
 
 ## Model Architecture
 
@@ -59,9 +59,9 @@ python sample.py \
 Arguments:
 
 - `--model` (required): checkpoint file or a directory containing a `.pt` file.
-- `--tokenizer-path`: tokenizer vocabulary json file.
-- `--tokenizer-type`: `auto` (default), `char`, or `subword`.
-  - If omitted (`auto` mode), the type is determined by the name of the tokenizer vocabulary file (`vocab.json` for character-level, `tokenizer.json` for subword-level).
+- `--tokenizer-path`: tokenizer file path (`vocab.json`, `tokenizer.json` or `.model`).
+- `--tokenizer-type`: `auto` (default), `char`, `bpe`, `unigram`
+  - In `auto` mode, `vocab.json` maps to character-level, `.model` maps to SentencePiece Unigram, otherwise it defaults to BPE-style JSON tokenizers.
 - `--prompt`: initial text for generation. Defaults to the tokenizer's `BOS` token if available, otherwise an empty string.
 - `--max-new-tokens`: number of tokens to generate (default `256`).
 - `--temperature` / `-t`: sampling temperature (default `1.0`).
@@ -70,3 +70,27 @@ Arguments:
 - `--seed`: optional random seed.
 - `--cpu`: force CPU inference.
 - `--skip-special-tokens`: omit special tokens during decode.
+
+## Eval CLI
+
+Generate multiple samples from a checkpoint and report sonnet structure metrics.
+
+```bash
+python eval.py \
+  --checkpoint <checkpoint-file> \
+  --tokenizer-path <tokenizer-vocab-file> \
+  --tokenizer-type char \
+  --num-samples 30 \
+  --temperature 0.8 \
+  --top-k 40
+```
+
+Arguments:
+
+- `--checkpoint` (required): path to a `.pt` checkpoint file.
+- `--tokenizer-path` (required): tokenizer file path (`vocab.json`, `tokenizer.json` or `.model`).
+- `--tokenizer-type` (required): `char`, `bpe`, or `unigram`.
+- `--num-samples`: number of generated samples to evaluate (default `10`).
+- `--temperature`: generation temperature (default `0.8`).
+- `--top-k`: top-k sampling cutoff (default `40`).
+- `--silent`: suppress per-sample generated text and print only metrics.

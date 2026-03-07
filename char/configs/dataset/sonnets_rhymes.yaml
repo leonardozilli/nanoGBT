@@ -1,0 +1,3 @@
+name: sonnets_char_rhymes
+data_dir: "data/encoded/char/sonnets_rhymes"
+tokenizer_path: ${dataset.data_dir}/vocab.json

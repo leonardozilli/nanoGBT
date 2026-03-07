@@ -1,0 +1,29 @@
+defaults:
+  - _self_
+  - dataset: sonnets_rhymes
+
+model:
+  block_size: 768
+  n_embd: 384
+  n_head: 4
+  n_layer: 8
+  dropout: 0.3
+
+training:
+  batch_size: 64
+  learning_rate: 1e-3
+  weight_decay: 0.02
+  max_steps: 5000
+  warmup_steps: 100
+  early_stop_patience: 300
+  checkpointing_steps: 6000
+  device: "cuda"
+  trace: true
+
+notes: ""
+
+seed: 42
+
+hydra:
+  run:
+    dir: outputs/char/${dataset.name}/${now:%Y-%m-%d}/${now:%H-%M-%S}

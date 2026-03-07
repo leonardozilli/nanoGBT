@@ -1,0 +1,3 @@
+name: italian-pd_1.2B
+data_dir: "data/encoded/char/pretrain/italian-pd_1.2B/"
+tokenizer_path: "data/encoded/char/pretrain/vocab.json"

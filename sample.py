@@ -4,28 +4,18 @@ import click
 import torch
 
 from common.model import GBT
-from common.tokenizer import CharTokenizer, SubwordTokenizer
+from common.tokenizer import (
+    BPETokenizer,
+    CharTokenizer,
+    UnigramTokenizer,
+    load_tokenizer,
+)
 
 
 def resolve_device(force_cpu: bool) -> str:
     if force_cpu:
         return "cpu"
     return "cuda" if torch.cuda.is_available() else "cpu"
-
-
-def load_tokenizer(
-    tokenizer_path: Path, tokenizer_type: str
-) -> CharTokenizer | SubwordTokenizer:
-    tokenizer_path_str = str(tokenizer_path)
-
-    if tokenizer_type == "char":
-        return CharTokenizer(tokenizer_path_str)
-    if tokenizer_type == "subword":
-        return SubwordTokenizer(tokenizer_path_str)
-
-    if tokenizer_path.name == "vocab.json":
-        return CharTokenizer(tokenizer_path_str)
-    return SubwordTokenizer(tokenizer_path_str)
 
 
 def normalize_top_k(top_k: int) -> int | None:
@@ -40,7 +30,9 @@ def normalize_top_p(top_p: float) -> float | None:
     return top_p if top_p > 0 else None
 
 
-def get_eos_id(tokenizer: CharTokenizer | SubwordTokenizer) -> int | None:
+def get_eos_id(
+    tokenizer: CharTokenizer | BPETokenizer | UnigramTokenizer,
+) -> int | None:
     eos_token = tokenizer.special_tokens.get("EOS")
     if not eos_token:
         return None
@@ -71,7 +63,7 @@ def get_eos_id(tokenizer: CharTokenizer | SubwordTokenizer) -> int | None:
 )
 @click.option(
     "--tokenizer-type",
-    type=click.Choice(["auto", "char", "subword"], case_sensitive=False),
+    type=click.Choice(["auto", "char", "bpe", "unigram"], case_sensitive=False),
     default="auto",
     show_default=True,
     help="Tokenizer type (auto infers from file name)",

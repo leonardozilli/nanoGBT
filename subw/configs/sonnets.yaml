@@ -1,0 +1,32 @@
+defaults:
+  - _self_
+  - dataset: sonnets_rhymes
+  - tokenizer: unigram
+
+data_dir: data/encoded/subw/${dataset.name}/${tokenizer.name}
+
+model:
+  block_size: 512
+  n_embd: 384
+  n_head: 4
+  n_layer: 8
+  dropout: 0.3
+
+training:
+  batch_size: 32
+  learning_rate: 1e-3
+  weight_decay: 0.1
+  max_steps: 16000
+  warmup_steps: 400
+  early_stop_patience: 300
+  checkpointing_steps: 1000
+  device: "cuda"
+  trace: true
+
+notes: ""
+
+seed: 42
+
+hydra:
+  run:
+    dir: outputs/subw/${dataset.name}/${tokenizer.name}/${now:%Y-%m-%d}/${now:%H-%M-%S}

@@ -1,3 +1,7 @@
+defaults:
+  - _self_
+  - dataset: italian-pd
+
 model:
   block_size: 768
   n_embd: 768
@@ -12,12 +16,14 @@ training:
   max_steps: 60000
   warmup_steps: 2000
   early_stop_patience: 5000
-  output_dir: "models/char/pretrain/italian-pd_1.2B/"
   checkpointing_steps: 3000
   device: "cuda"
   trace: true
 
-dataset:
-  dataset_name: italian-pd_1.2B
-  data_dir: "data/encoded/char/pretrain/italian-pd_1.2B"
-  tokenizer_path: "data/encoded/char/pretrain/vocab.json"
+notes: ""
+
+seed: 42
+
+hydra:
+  run:
+    dir: outputs/char/${dataset.name}/${tokenizer.name}/${now:%Y-%m-%d_%H-%M-%S}
