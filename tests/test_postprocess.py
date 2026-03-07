@@ -51,15 +51,7 @@ def test_check_structure_invalid():
     assert postprocess.check_structure(invalid) is False
 
 
-def test_extract_rhyme_suffix():
-    assert postprocess.extract_rhyme_suffix("Pietà!", max_rhyme_length=2) == "a"
-    assert postprocess.extract_rhyme_suffix("amor", max_rhyme_length=2) == "or"
-    assert postprocess.extract_rhyme_suffix("amore...", max_rhyme_length=1) == "e"
-    assert postprocess.extract_rhyme_suffix("rhythms", max_rhyme_length=3) == "hms"
-    assert postprocess.extract_rhyme_suffix("sciampanella", max_rhyme_length=3) == "a"
-
-
-def test_tag_sonnet_rhymes_assigns_labels_and_skips_special_lines():
+def test_tag_sonnet_rhymes():
     text = "\n".join(
         [
             "<SONNET>",
@@ -85,7 +77,25 @@ def test_tag_sonnet_rhymes_assigns_labels_and_skips_special_lines():
     assert "<END>" in tagged
 
 
-def test_main_cli_processes_file(tmp_path):
+def test_tag_sonnet_rhymes_uses_separate_tercet_labels_for_14_lines():
+    text = "\n\n".join(
+        [
+            "uno casa\ndue sole\ntre sole\nquattro casa",
+            "cinque casa\nsei sole\nsette sole\notto casa",
+            "nove luna\ndieci lume\nundici luna",
+            "dodici lume\ntredici luna\nquattordici lume",
+        ]
+    )
+
+    tagged = postprocess.tag_sonnet_rhymes(text, max_rhyme_length=2)
+
+    assert "uno casa <RHYME_A>" in tagged
+    assert "due sole <RHYME_B>" in tagged
+    assert "nove luna <RHYME_C>" in tagged
+    assert "dieci lume <RHYME_D>" in tagged
+
+
+def test_main_cli(tmp_path):
     raw_dir = tmp_path / "raw"
     out_dir = tmp_path / "out"
     raw_dir.mkdir()

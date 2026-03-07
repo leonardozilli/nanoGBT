@@ -7,10 +7,11 @@ Clean and process raw sonnets, adding special tokens:
 
 import os
 import re
-import unicodedata
 from pathlib import Path
 
 import click
+
+from common.rhyme_utils import extract_rhyme_suffix
 
 replace_table = {
     "ä": "a",
@@ -56,35 +57,21 @@ def check_structure(text: str) -> bool:
     return True
 
 
-def _normalize_word(word: str):
-    clean_word = re.sub(r"[^\w\s\']", "", word).lower()
-    clean_word = unicodedata.normalize("NFD", clean_word)
-    return "".join(c for c in clean_word if unicodedata.category(c) != "Mn")
-
-
-def extract_rhyme_suffix(word: str, max_rhyme_length: int = 2):
-    clean_word = _normalize_word(word)
-    if not clean_word:
-        return ""
-
-    vowels = "aeiou"
-    for i in range(len(clean_word) - 1, -1, -1):
-        if clean_word[i] in vowels:
-            rhyme = clean_word[i:]
-            return rhyme[-max_rhyme_length:] if len(rhyme) > max_rhyme_length else rhyme
-
-    return (
-        clean_word[-max_rhyme_length:]
-        if len(clean_word) >= max_rhyme_length
-        else clean_word
-    )
-
-
 def tag_sonnet_rhymes(text, max_rhyme_length=2):
     lines = text.split("\n")
-    rhyme_map = {}
-    current_char = 65
+    octave_rhyme_map = {}
+    sestet_rhyme_map = {}
+    global_rhyme_map = {}
+    next_octave_char = 65  # A
+    next_sestet_char = 67  # C
+    next_global_char = 65
     tagged_lines = []
+
+    line_count = len(
+        [line for line in lines if line.strip() and not line.strip().startswith("<")]
+    )
+    split_octave_sestet_labels = line_count == 14
+    line_index = 0
 
     for line in lines:
         if not line.strip() or line.strip().startswith("<"):
@@ -95,14 +82,26 @@ def tag_sonnet_rhymes(text, max_rhyme_length=2):
         last_word = words[-1]
         suffix = extract_rhyme_suffix(last_word, max_rhyme_length=max_rhyme_length)
 
-        if suffix not in rhyme_map:
-            rhyme_map[suffix] = chr(current_char)
-            current_char += 1
-
-        rhyme_letter = rhyme_map[suffix]
+        if split_octave_sestet_labels:
+            if line_index < 8:
+                if suffix not in octave_rhyme_map:
+                    octave_rhyme_map[suffix] = chr(next_octave_char)
+                    next_octave_char += 1
+                rhyme_letter = octave_rhyme_map[suffix]
+            else:
+                if suffix not in sestet_rhyme_map:
+                    sestet_rhyme_map[suffix] = chr(next_sestet_char)
+                    next_sestet_char += 1
+                rhyme_letter = sestet_rhyme_map[suffix]
+        else:
+            if suffix not in global_rhyme_map:
+                global_rhyme_map[suffix] = chr(next_global_char)
+                next_global_char += 1
+            rhyme_letter = global_rhyme_map[suffix]
 
         tagged_line = f"{line} <RHYME_{rhyme_letter}>"
         tagged_lines.append(tagged_line)
+        line_index += 1
 
     return "\n".join(tagged_lines)
 

@@ -73,8 +73,6 @@ Arguments:
 
 ## Eval CLI
 
-Generate multiple samples from a checkpoint and report sonnet structure metrics.
-
 ```bash
 python eval.py \
   --checkpoint <checkpoint-file> \
