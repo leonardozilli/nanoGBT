@@ -1,13 +1,23 @@
 import json
+import re
 from collections.abc import Iterable
 from pathlib import Path
 
 from tokenizers import Tokenizer
 
+RHYME_MARKING_RE = re.compile(r"(?m)^[Ⓐ-Ⓩ][ \t]+[^|\n]*\|[ \t]*")
+
 SPECIAL_TOKENS = {
     "BOS": "<SONNET>",
     "SEP": "<STANZA>",
     "EOS": "<END>",
+    "RHYME_A": "<RHYME_A>",
+    "RHYME_B": "<RHYME_B>",
+    "RHYME_C": "<RHYME_C>",
+    "RHYME_D": "<RHYME_D>",
+    "RHYME_E": "<RHYME_E>",
+    "RHYME_F": "<RHYME_F>",
+    "RHYME_G": "<RHYME_G>",
 }
 
 
@@ -32,17 +42,28 @@ class CharTokenizer:
     def encode(self, text: str):
         return [self.stoi[c] for c in text]
 
+    def get_token_id(self, token: str) -> int:
+        return self.stoi.get(
+            token, self.stoi.get(self.special_tokens.get("UNK", ""), -1)
+        )
+
     def decode(self, batch: list, skip_special_tokens: bool = True):
         if isinstance(batch, int):
             batch = [batch]
 
-        tokens = (self.itos[i] for i in batch)
+        text = "".join(self.itos[i] for i in batch)
 
         if skip_special_tokens:
-            special = set(self.special_tokens.values())
-            tokens = (tok for tok in tokens if tok not in special)
+            text = RHYME_MARKING_RE.sub("", text)
+            tokens_to_strip = {
+                token for name, token in self.special_tokens.items() if name != "SEP"
+            }
+            for token in tokens_to_strip:
+                text = text.replace(token, "")
 
-        return "".join(tokens)
+            return text
+
+        return text
 
 
 class BPETokenizer:
@@ -56,6 +77,9 @@ class BPETokenizer:
     def encode(self, text: str):
         return self.tokenizer.encode(text).ids
 
+    def get_token_id(self, token: str) -> int:
+        return self.tokenizer.token_to_id(token)
+
     def decode(self, batch: list, skip_special_tokens: bool = True):
         return self.tokenizer.decode(batch, skip_special_tokens=skip_special_tokens)
 
@@ -65,12 +89,8 @@ class UnigramTokenizer:
         self.kind = "unigram"
         self.path = path
 
-        self.special_tokens = {
-            "UNK": "[UNK]",
-            "BOS": "<SONNET>",
-            "SEP": "<STANZA>",
-            "EOS": "<END>",
-        }
+        self.special_tokens = SPECIAL_TOKENS.copy()
+        self.special_tokens.update({"UNK": "<UNK>"})
 
         if path.endswith(".model"):
             import sentencepiece as spm
@@ -78,12 +98,12 @@ class UnigramTokenizer:
             spm.set_min_log_level(2)  # suppress warnings
 
             self.backend = "sentencepiece"
+            self.kind = "unigram_regularized"
             self.sp = spm.SentencePieceProcessor()
             self.sp.Load(path)
             self.vocab_size = self.sp.vocab_size()
         else:
             self.backend = "hf"
-            print(path)
             self.tokenizer = Tokenizer.from_file(path)
             self.vocab_size = self.tokenizer.get_vocab_size()
 
@@ -97,6 +117,11 @@ class UnigramTokenizer:
         if self.backend == "sentencepiece":
             return self.sp.EncodeAsIds(text)
         return self.tokenizer.encode(text).ids
+
+    def get_token_id(self, token: str) -> int:
+        if self.backend == "sentencepiece":
+            return self.sp.PieceToId(token)
+        return self.tokenizer.token_to_id(token)
 
     def decode(self, batch: list, skip_special_tokens: bool = True):
         ids = self._flatten_ids(batch)

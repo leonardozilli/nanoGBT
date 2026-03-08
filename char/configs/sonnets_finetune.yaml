@@ -1,8 +1,8 @@
 defaults:
   - _self_
-  - dataset: sonnets_finetune
+  - dataset: sonnets_rhymes_pipe
 
-checkpoint: models/char/pretrain/italian-pd_1.2B/checkpoint_57000.pt
+checkpoint: outputs/char/italian-pd_1.2B/2026-03-08/11-10-28/checkpoint_57000_corrected.pt
 
 model:
   block_size: 768
@@ -15,7 +15,7 @@ training:
   batch_size: 32
   learning_rate: 3e-5
   weight_decay: 0.1
-  max_steps: 2500
+  max_steps: 5000
   warmup_steps: 100
   early_stop_patience: 300
   checkpointing_steps: 3000
@@ -28,4 +28,4 @@ seed: 42
 
 hydra:
   run:
-    dir: outputs/char/${dataset.name}/${tokenizer.name}/${now:%Y-%m-%d_%H-%M-%S}
+    dir: outputs/char/${dataset.name}/${now:%Y-%m-%d_%H-%M-%S}

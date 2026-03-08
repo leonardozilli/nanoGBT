@@ -40,16 +40,8 @@ def main(
     bos_str = tokenizer.special_tokens.get("BOS", "<SONNET>")
     eos_str = tokenizer.special_tokens.get("EOS", "<END>")
 
-    bos_id = (
-        tokenizer.encode(bos_str)[0]
-        if isinstance(tokenizer.encode(bos_str), list)
-        else tokenizer.encode(bos_str)
-    )
-    eos_id = (
-        tokenizer.encode(eos_str)[0]
-        if isinstance(tokenizer.encode(eos_str), list)
-        else tokenizer.encode(eos_str)
-    )
+    bos_id = tokenizer.get_token_id(bos_str)
+    eos_id = tokenizer.get_token_id(eos_str)
 
     print(f"Evaluating {num_samples} samples...\n")
 
@@ -77,6 +69,7 @@ def main(
             generated_text = tokenizer.decode(
                 pred[0].tolist(), skip_special_tokens=True
             )
+            generated_text = generated_text.replace("<NEWLINE>", "\n")
 
             metrics = evaluate_structure(generated_text)
 
@@ -93,7 +86,7 @@ def main(
 
             if not silent:
                 print(f"--- Sample {i + 1} ---")
-                print(generated_text.replace("<NEWLINE>", "\n"))
+                print(generated_text)
                 print("----------------\n")
 
     print("=" * 40)

@@ -68,10 +68,10 @@ def test_tag_sonnet_rhymes():
 
     tagged = postprocess.tag_sonnet_rhymes(text, max_rhyme_length=2)
 
-    assert "Prima linea casa <RHYME_A>" in tagged
-    assert "Seconda linea sole <RHYME_B>" in tagged
-    assert "Terza linea sole <RHYME_B>" in tagged
-    assert "Quarta linea casa <RHYME_A>" in tagged
+    assert "<RHYME_A> Prima linea casa" in tagged
+    assert "<RHYME_B> Seconda linea sole" in tagged
+    assert "<RHYME_B> Terza linea sole" in tagged
+    assert "<RHYME_A> Quarta linea casa" in tagged
     assert "<SONNET>" in tagged
     assert "<STANZA>" in tagged
     assert "<END>" in tagged
@@ -89,10 +89,21 @@ def test_tag_sonnet_rhymes_uses_separate_tercet_labels_for_14_lines():
 
     tagged = postprocess.tag_sonnet_rhymes(text, max_rhyme_length=2)
 
-    assert "uno casa <RHYME_A>" in tagged
-    assert "due sole <RHYME_B>" in tagged
-    assert "nove luna <RHYME_C>" in tagged
-    assert "dieci lume <RHYME_D>" in tagged
+    assert "<RHYME_A> uno casa" in tagged
+    assert "<RHYME_B> due sole" in tagged
+    assert "<RHYME_C> nove luna" in tagged
+    assert "<RHYME_D> dieci lume" in tagged
+
+
+def test_tag_sonnet_rhymes_with_include_last_word():
+    text = "\n".join(["<SONNET>", "Prima linea casa", "Seconda linea sole", "<END>"])
+
+    tagged = postprocess.tag_sonnet_rhymes(
+        text, max_rhyme_length=2, include_last_word=True
+    )
+
+    assert "<RHYME_A> casa | Prima linea casa" in tagged
+    assert "<RHYME_B> sole | Seconda linea sole" in tagged
 
 
 def test_main_cli(tmp_path):
@@ -137,3 +148,42 @@ def test_main_cli(tmp_path):
     assert "<STANZA>" in output_text
     assert output_text.rstrip().endswith("<END>")
     assert output_text.count("<RHYME_") == 14
+
+
+def test_main_cli_with_include_last_word(tmp_path):
+    raw_dir = tmp_path / "raw"
+    out_dir = tmp_path / "out"
+    raw_dir.mkdir()
+
+    sonnet_text = "\n\n".join(
+        [
+            "uno casa\ndue sole\ntre sole\nquattro casa",
+            "cinque casa\nsei sole\nsette sole\notto casa",
+            "nove luna\ndieci mare\nundici luna",
+            "dodici luna\ntredici mare\nquattordici luna",
+        ]
+    )
+    input_file = raw_dir / "01. test.txt"
+    input_file.write_text(sonnet_text, encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        postprocess.main,
+        [
+            "--data-dir",
+            str(raw_dir),
+            "--out-dir",
+            str(out_dir),
+            "--mark-rhymes",
+            "--include-last-word",
+            "--rhyme-length",
+            "2",
+        ],
+    )
+
+    assert result.exit_code == 0
+
+    output_file = out_dir / "01. test.txt"
+    output_text = output_file.read_text(encoding="utf-8")
+    assert "| uno casa" in output_text
+    assert "| due sole" in output_text

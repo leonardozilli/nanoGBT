@@ -185,6 +185,9 @@ def train(
         shutil.copy2(tmp_checkpoint, best_checkpoint_path)
         os.remove(tmp_checkpoint)
 
+    logger.info(f"Model saved to {best_checkpoint_path}")
+    logger.info(f"Tokenizer path: {tokenizer.path}")
+
     metadata = {
         "model": vars(model_config),
         "tokenizer_type": tokenizer.kind,

@@ -26,4 +26,4 @@ seed: 42
 
 hydra:
   run:
-    dir: outputs/char/${dataset.name}/${tokenizer.name}/${now:%Y-%m-%d_%H-%M-%S}
+    dir: outputs/char/${dataset.name}/${now:%Y-%m-%d}/${now:%H-%M-%S}

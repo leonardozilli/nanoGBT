@@ -34,6 +34,125 @@ def test_char_tokenizer_encode_decode_with_special_tokens(tmp_path):
     assert tokenizer.decode([0, 1, 2, 3], skip_special_tokens=True) == "ab"
 
 
+def test_char_tokenizer_decode_strips_rhyme_prefix_metadata(tmp_path):
+    vocab = {
+        "special_tokens": {"RHYME_D": "Ⓓ"},
+        "itos": {
+            "0": "Ⓓ",
+            "1": " ",
+            "2": "r",
+            "3": "a",
+            "4": "g",
+            "5": "i",
+            "6": "o",
+            "7": "n",
+            "8": "e",
+            "9": "|",
+            "10": "D",
+            "11": "p",
+            "12": "!",
+            "13": "c",
+            "14": "’",
+            "15": "b",
+            "16": "f",
+            "17": "t",
+            "18": "l",
+            "19": "d",
+        },
+        "stoi": {
+            "Ⓓ": 0,
+            " ": 1,
+            "r": 2,
+            "a": 3,
+            "g": 4,
+            "i": 5,
+            "o": 6,
+            "n": 7,
+            "e": 8,
+            "|": 9,
+            "D": 10,
+            "p": 11,
+            "!": 12,
+            "c": 13,
+            "’": 14,
+            "b": 15,
+            "f": 16,
+            "t": 17,
+            "l": 18,
+            "d": 19,
+        },
+    }
+
+    vocab_path = tmp_path / "vocab.json"
+    vocab_path.write_text(json.dumps(vocab), encoding="utf-8")
+
+    tokenizer = CharTokenizer(str(vocab_path))
+    text = "Ⓓ raggione | Da per dio! c’abbi fatto la raggione"
+    encoded = tokenizer.encode(text)
+
+    assert tokenizer.decode(encoded, skip_special_tokens=True) == (
+        "Da per dio! c’abbi fatto la raggione"
+    )
+    assert tokenizer.decode(encoded, skip_special_tokens=False) == text
+
+
+def test_char_tokenizer_decode_preserves_newlines_when_stripping_rhyme_prefix(
+    tmp_path,
+):
+    vocab = {
+        "special_tokens": {"RHYME_A": "Ⓐ", "SEP": "\n\n", "EOS": "§"},
+        "itos": {
+            "0": "Ⓐ",
+            "1": " ",
+            "2": "c",
+            "3": "a",
+            "4": "s",
+            "5": "|",
+            "6": "\n",
+            "7": "P",
+            "8": "r",
+            "9": "i",
+            "10": "m",
+            "11": "l",
+            "12": "n",
+            "13": "e",
+            "14": "S",
+            "15": "o",
+            "16": "d",
+            "17": "§",
+        },
+        "stoi": {
+            "Ⓐ": 0,
+            " ": 1,
+            "c": 2,
+            "a": 3,
+            "s": 4,
+            "|": 5,
+            "\n": 6,
+            "P": 7,
+            "r": 8,
+            "i": 9,
+            "m": 10,
+            "l": 11,
+            "n": 12,
+            "e": 13,
+            "S": 14,
+            "o": 15,
+            "d": 16,
+            "§": 17,
+        },
+    }
+
+    vocab_path = tmp_path / "vocab.json"
+    vocab_path.write_text(json.dumps(vocab), encoding="utf-8")
+
+    tokenizer = CharTokenizer(str(vocab_path))
+    text = "Ⓐ casa | Prima\n\nⒶ casa | Seconda§"
+    encoded = tokenizer.encode(text)
+
+    assert tokenizer.decode(encoded, skip_special_tokens=True) == "Prima\n\nSeconda"
+
+
 def test_unigram_flatten_ids_handles_nested_and_flat_lists():
     tokenizer = UnigramTokenizer.__new__(UnigramTokenizer)
 

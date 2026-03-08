@@ -57,8 +57,8 @@ def create_sonnets_dataset(data_dir) -> tuple[list[str], str]:
             lengths.append(len(text))
             sonnets.append(text)
     print(
-        f"number of sonnets: {len(sonnets):,}",
-        f"average length: {np.mean(lengths):.2f} chars",
+        f"number of sonnets: {len(sonnets):,}\n",
+        f"average length: {np.mean(lengths):.2f} chars\n",
         f"length of dataset in characters: {len(text_content):,}",
     )
 
@@ -121,23 +121,23 @@ def save_dataset_metadata(out_dir, dataset_name, vocab_size, split_sizes):
 
 @click.command()
 @click.option(
-    "--sonnet-dir", default="data/processed/", help="Directory with sonnet .txt files"
+    "--data-dir", default="data/processed/", help="Directory with sonnet .txt files"
 )
 @click.option(
     "--pretrain-data", default=None, help="Path to pretrain data parquet file"
 )
 @click.option(
     "--out-dir",
-    default="data/encoded/sonnets",
+    default="data/encoded/char/sonnets",
     help="Directory to save encoded files",
 )
-def main(sonnet_dir, pretrain_data, out_dir):
+def main(data_dir, pretrain_data, out_dir):
     np.random.seed(42)
     random.seed(42)
     os.makedirs(out_dir, exist_ok=True)
 
     # --- 1. Load sonnets
-    sonnets, _ = create_sonnets_dataset(sonnet_dir)
+    sonnets, _ = create_sonnets_dataset(data_dir)
     print(f"Loaded {len(sonnets):,} sonnets")
 
     if pretrain_data:

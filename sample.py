@@ -37,11 +37,9 @@ def get_eos_id(
     if not eos_token:
         return None
 
-    eos_ids = tokenizer.encode(eos_token)
-    if len(eos_ids) != 1:
-        return None
+    eos_id = tokenizer.get_token_id(eos_token)
 
-    return eos_ids[0]
+    return eos_id
 
 
 @click.command()
@@ -115,7 +113,6 @@ def main(
     model.eval()
 
     tokenizer = load_tokenizer(tokenizer_path, tokenizer_type.lower())
-
     prompt_text = prompt or tokenizer.special_tokens.get("BOS", "")
     if not prompt_text:
         raise click.ClickException(
@@ -138,6 +135,8 @@ def main(
     generated_text = tokenizer.decode(
         output_tokens[0].tolist(), skip_special_tokens=skip_special_tokens
     )
+
+    generated_text = generated_text.replace("<NEWLINE>", "\n")
     click.echo(generated_text)
 
 

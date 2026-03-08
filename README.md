@@ -2,48 +2,47 @@
 
 This repository hosts experiments in training custom transformer models to generate poetry in the style of Giuseppe Gioachino Belli.
 
-Three training approaches are implemented:
-1. [Character-level](./char/): a GPT-style transformer is trained using character-level tokenization. Includes a model trained directly on the sonnets dataset, as well as a 50M parameter model first pre-trained on a large dataset of 19th-century Italian documents before fine-tuning on Belli's sonnets.
-2. [Subword-level](./subw/): the same GPT-style architecture, trained from scratch using a custom BPE tokenizer.
-3. [LLM Fine-Tuning](./finetune/): Larger pre-trained language models are fine-tuned on the sonnets using LoRA adapters.
+Three approaches are implemented:
+1. [Character-level](./char/): a GPT-style transformer trained using character-level tokenization.
+2. [Subword-level](./subw/): the same GPT-style architecture, trained from scratch using custom subword (BPE, Unigram) tokenizers.
+3. [LLM Fine-Tuning](./finetune/): Larger pre-trained language models fine-tuned on the sonnets using LoRA adapters.
 
 ---
 
 ## Dataset
-Giuseppe Gioachino Belli (1791‒1863) wrote 2279 sonnets portraying everyday life and customs of 19th-century Rome, written almost entirely in the local Romanesco dialect. These sonnets mostly follow a consistent structure of 14 hendecasyllabic lines divided into two quatrains and two tercets, typically with an ABBA ABBA CDC DCD rhyming scheme.
-The main data used for training consists of this collection, with two sonnets removed due to being in dialogue format.
+Giuseppe Gioachino Belli (1791‒1863) wrote 2279 sonnets portraying everyday life and customs of 19th-century Rome, using almost entirely the local Romanesco dialect. These sonnets generally follow a consistent structure of 14 hendecasyllabic lines divided into two quatrains and two tercets, typically with an ABBA ABBA CDC DCD rhyming scheme.
 
-The raw sonnets are prepared for training by cleaning out orthographic noise (e.g. diacritics variants, editorial annotations, OCR errors), and marked to include special structural tokens:
+The main dataset used for training consists of this collection, with the raw sonnets cleaned to remove orthographic noise (e.g. diacritics variants, editorial annotations, OCR errors), and marked to include special structural tokens:
 
 > *\<SONNET>*  
-> *Cuattro angioloni co le tromme in bocca <RHYME_A>*  
-> *se metteranno uno pe cantone <RHYME_B>*  
-> *a ssonà: poi co ttanto de voscione <RHYME_B>*  
-> *cominceranno a ddì: ffora a cchi ttocca. <RHYME_A>*  
+> *<RHYME_A> Cuattro angioloni co le tromme in bocca*  
+> *<RHYME_B> se metteranno uno pe cantone*  
+> *<RHYME_B> a ssonà: poi co ttanto de voscione*  
+> *<RHYME_A> cominceranno a ddì: ffora a cchi ttocca.*  
 >  
 > *\<STANZA>*  
 >  
-> *Allora vierà ssù una filastrocca <RHYME_A>*  
-> *de schertri da la terra a ppecorone, <RHYME_B>*  
-> *pe rripijjà ffigura de perzone, <RHYME_B>*  
-> *come purcini attorno de la bbiocca. <RHYME_A>*  
+> *<RHYME_A> Allora vierà ssù una filastrocca*  
+> *<RHYME_B> de schertri da la terra a ppecorone,*  
+> *<RHYME_B> pe rripijjà ffigura de perzone,*  
+> *<RHYME_A> come purcini attorno de la bbiocca.*  
 >  
 > *\<STANZA>*  
 >  
-> *E sta bbiocca sarà ddio bbenedetto, <RHYME_C>*  
-> *che ne farà du’ parte, bbianca, e nnera: <RHYME_D>*  
-> *una pe annà in cantina, una sur tetto. <RHYME_C>*  
+> *<RHYME_C> E sta bbiocca sarà ddio bbenedetto,*  
+> *<RHYME_D> che ne farà du’ parte, bbianca, e nnera:*  
+> *<RHYME_C> una pe annà in cantina, una sur tetto.*  
 >  
 > *\<STANZA>*  
 >  
-> *All’urtimo usscirà ’na sonajjera <RHYME_D>*  
-> *d’Angioli, e, ccome si ss’annassi a lletto, <RHYME_C>*  
-> *smorzeranno li lumi, e bbona sera. <RHYME_D>*  
+> *<RHYME_D> All’urtimo usscirà ’na sonajjera*  
+> *<RHYME_C> d’Angioli, e, ccome si ss’annassi a lletto,*  
+> *<RHYME_D> smorzeranno li lumi, e bbona sera.*  
 > *\<END>*  
 
 ## Model Architecture
 
-The models trained from scratch use a decoder-only transformer [architecture](./common/model.py), inspired by [nanoGPT](https://github.com/karpathy/nanoGPT)'s implementation of GPT-2, but modernized to use RoPE, SwiGLU activation with ~8/3 expansion, residual scaling and RMSNorm.
+The models trained from scratch use a decoder-only transformer [architecture](./common/model.py), inspired by [nanoGPT](https://github.com/karpathy/nanoGPT)'s implementation of GPT-2, but modernized to use RMSNorm, RoPE, SwiGLU and residual scaling.
 
 ## Sampling CLI
 
@@ -53,6 +52,7 @@ python sample.py \
   --tokenizer-path <tokenizer-vocab-file> \
   --temperature 0.7 \
   --top-k 40 \
+  --top-p 0.9 \
   --max-new-tokens 800
 ```
 
@@ -80,7 +80,8 @@ python eval.py \
   --tokenizer-type char \
   --num-samples 30 \
   --temperature 0.8 \
-  --top-k 40
+  --top-k 40 \
+  --top-p 0.9
 ```
 
 Arguments:
@@ -91,4 +92,5 @@ Arguments:
 - `--num-samples`: number of generated samples to evaluate (default `10`).
 - `--temperature`: generation temperature (default `0.8`).
 - `--top-k`: top-k sampling cutoff (default `40`).
+- `--top-p`: nucleus sampling cutoff (default `0.9`).
 - `--silent`: suppress per-sample generated text and print only metrics.

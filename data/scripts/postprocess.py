@@ -57,7 +57,7 @@ def check_structure(text: str) -> bool:
     return True
 
 
-def tag_sonnet_rhymes(text, max_rhyme_length=2):
+def tag_sonnet_rhymes(text, max_rhyme_length=2, include_last_word=False):
     lines = text.split("\n")
     octave_rhyme_map = {}
     sestet_rhyme_map = {}
@@ -79,7 +79,7 @@ def tag_sonnet_rhymes(text, max_rhyme_length=2):
             continue
 
         words = line.split()
-        last_word = words[-1]
+        last_word = re.sub(r"[^\w]+$", "", words[-1]) or words[-1]
         suffix = extract_rhyme_suffix(last_word, max_rhyme_length=max_rhyme_length)
 
         if split_octave_sestet_labels:
@@ -99,7 +99,11 @@ def tag_sonnet_rhymes(text, max_rhyme_length=2):
                 next_global_char += 1
             rhyme_letter = global_rhyme_map[suffix]
 
-        tagged_line = f"{line} <RHYME_{rhyme_letter}>"
+        if include_last_word:
+            tagged_line = f"<RHYME_{rhyme_letter}> {last_word} | {line}"
+        else:
+            tagged_line = f"<RHYME_{rhyme_letter}> {line}"
+
         tagged_lines.append(tagged_line)
         line_index += 1
 
@@ -130,6 +134,11 @@ def tag_sonnet_rhymes(text, max_rhyme_length=2):
     "--mark-rhymes", is_flag=True, help="Mark rhyming words with special tokens"
 )
 @click.option(
+    "--include-last-word",
+    is_flag=True,
+    help="Include the line's last word in the rhyme markings",
+)
+@click.option(
     "--rhyme-length",
     default=2,
     show_default=True,
@@ -140,12 +149,14 @@ def main(
     out_dir: Path,
     include_title: bool,
     mark_rhymes: bool,
+    include_last_word: bool,
     rhyme_length: int,
 ):
     out_dir.mkdir(parents=True, exist_ok=True)
 
     filenames = sorted(fn for fn in os.listdir(data_dir) if fn.endswith(".txt"))
 
+    c = 0
     for filename in filenames:
         with open(data_dir / filename, "r", encoding="utf-8") as f:
             text = f.read().strip()
@@ -158,10 +169,17 @@ def main(
                 text = f"<TITLE>{title}</TITLE>\n\n{text}"
             text = "<SONNET>\n" + text + "\n<END>"
             if mark_rhymes:
-                text = tag_sonnet_rhymes(text, max_rhyme_length=rhyme_length)
+                text = tag_sonnet_rhymes(
+                    text,
+                    max_rhyme_length=rhyme_length,
+                    include_last_word=include_last_word,
+                )
 
         with open(out_dir / filename, "w", encoding="utf-8") as f:
             f.write(text)
+            c += 1
+
+    print(f"Processed {c} sonnets and saved to {out_dir}")
 
 
 if __name__ == "__main__":
