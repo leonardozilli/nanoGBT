@@ -1,4 +1,5 @@
 name: unigram_regularized
 type: unigram
+size: 2000
 
-tokenizer_path: ${data_dir}/spm_model.vocab
+tokenizer_path: ${data_dir}/spm_model.model

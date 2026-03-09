@@ -1,4 +1,5 @@
 name: bpe
 type: bpe
+size: 1200
 
 tokenizer_path: ${data_dir}/tokenizer.json

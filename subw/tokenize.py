@@ -158,7 +158,22 @@ def main(
         )
 
     os.makedirs(out_dir, exist_ok=True)
-    special_tokens = ["[UNK]", "<SONNET>", "<STANZA>", "<END>"]
+    special_tokens = [
+        "[UNK]",
+        "<SONNET>",
+        "<STANZA>",
+        "<END>",
+        "<RHYME_A>",
+        "<RHYME_B>",
+        "<RHYME_C>",
+        "<RHYME_D>",
+        "<RHYME_E>",
+        "<RHYME_F>",
+        "<RHYME_G>",
+        "<RHYME_H>",
+        "<RHYME_I>",
+        "<RHYME_J>",
+    ]
 
     sonnets = load_sonnets(data_dir)
     train_list, val_list = split_data(sonnets)
