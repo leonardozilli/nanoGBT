@@ -88,7 +88,7 @@ def sample(
     context = torch.tensor([input_ids], dtype=torch.long, device=config.device)
     pred = model.generate(context, max_new_tokens=max_new_tokens)
     generated_text = tokenizer.decode(pred[0].tolist(), skip_special_tokens=False)
-    logger.info(f"Generated text: {generated_text}")
+    logger.info(generated_text)
 
     return generated_text
 

@@ -4,45 +4,17 @@ This repository hosts experiments in training custom transformer models to gener
 
 Three approaches are implemented:
 1. [Character-level](./char/): a GPT-style transformer trained using character-level tokenization.
-2. [Subword-level](./subw/): the same GPT-style architecture, trained from scratch using custom subword (BPE, Unigram) tokenizers.
+2. [Subword-level](./subw/): the same GPT-style architecture, trained using custom subword (BPE, Unigram) tokenizers.
 3. [LLM Fine-Tuning](./finetune/): Larger pre-trained language models fine-tuned on the sonnets using LoRA adapters.
 
 ---
 
 ## Dataset
-Giuseppe Gioachino Belli (1791‒1863) wrote 2279 sonnets portraying everyday life and customs of 19th-century Rome, using almost entirely the local Romanesco dialect. These sonnets generally follow a consistent structure of 14 hendecasyllabic lines divided into two quatrains and two tercets, typically with an ABBA ABBA CDC DCD rhyming scheme.
-
-The main dataset used for training consists of this collection, with the raw sonnets cleaned to remove orthographic noise (e.g. diacritics variants, editorial annotations, OCR errors), and marked to include special structural tokens:
-
-> *\<SONNET>*  
-> *<RHYME_A> Cuattro angioloni co le tromme in bocca*  
-> *<RHYME_B> se metteranno uno pe cantone*  
-> *<RHYME_B> a ssonà: poi co ttanto de voscione*  
-> *<RHYME_A> cominceranno a ddì: ffora a cchi ttocca.*  
->  
-> *\<STANZA>*  
->  
-> *<RHYME_A> Allora vierà ssù una filastrocca*  
-> *<RHYME_B> de schertri da la terra a ppecorone,*  
-> *<RHYME_B> pe rripijjà ffigura de perzone,*  
-> *<RHYME_A> come purcini attorno de la bbiocca.*  
->  
-> *\<STANZA>*  
->  
-> *<RHYME_C> E sta bbiocca sarà ddio bbenedetto,*  
-> *<RHYME_D> che ne farà du’ parte, bbianca, e nnera:*  
-> *<RHYME_C> una pe annà in cantina, una sur tetto.*  
->  
-> *\<STANZA>*  
->  
-> *<RHYME_D> All’urtimo usscirà ’na sonajjera*  
-> *<RHYME_C> d’Angioli, e, ccome si ss’annassi a lletto,*  
-> *<RHYME_D> smorzeranno li lumi, e bbona sera.*  
-> *\<END>*  
+Giuseppe Gioachino Belli (1791‒1863) wrote 2279 sonnets portraying everyday life and customs of 19th-century Rome, using almost entirely the local Romanesco dialect. The main dataset used for training consists of this collection.
 
 ## Model Architecture
 
-The models trained from scratch use a decoder-only transformer [architecture](./common/model.py), inspired by [nanoGPT](https://github.com/karpathy/nanoGPT)'s implementation of GPT-2, but modernized to use RMSNorm, RoPE, SwiGLU and residual scaling.
+The custom models use a decoder-only transformer [architecture](./common/model.py), inspired by [nanoGPT](https://github.com/karpathy/nanoGPT)'s implementation of GPT-2, modernized to use RMSNorm, RoPE, SwiGLU and residual scaling.
 
 ## Sampling CLI
 
@@ -58,8 +30,8 @@ python sample.py \
 
 Arguments:
 
-- `--model` (required): checkpoint file or a directory containing a `.pt` file.
-- `--tokenizer-path`: tokenizer file path (`vocab.json`, `tokenizer.json` or `.model`).
+- `--checkpoint` (required): checkpoint file or a directory containing a `.pt` file.
+- `--tokenizer`: tokenizer file path (`vocab.json`, `tokenizer.json` or `.model`).
 - `--tokenizer-type`: `auto` (default), `char`, `bpe`, `unigram`
   - In `auto` mode, `vocab.json` maps to character-level, `.model` maps to SentencePiece Unigram, otherwise it defaults to BPE-style JSON tokenizers.
 - `--prompt`: initial text for generation. Defaults to the tokenizer's `BOS` token if available, otherwise an empty string.
@@ -87,7 +59,7 @@ python eval.py \
 Arguments:
 
 - `--checkpoint` (required): path to a `.pt` checkpoint file.
-- `--tokenizer-path` (required): tokenizer file path (`vocab.json`, `tokenizer.json` or `.model`).
+- `--tokenizer` (required): tokenizer file path (`vocab.json`, `tokenizer.json` or `.model`).
 - `--tokenizer-type` (required): `char`, `bpe`, or `unigram`.
 - `--num-samples`: number of generated samples to evaluate (default `10`).
 - `--temperature`: generation temperature (default `0.8`).

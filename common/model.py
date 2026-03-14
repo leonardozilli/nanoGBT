@@ -205,7 +205,7 @@ class GBT(nn.Module):
         B, T = idx.shape
         tok_emb = self.transformer["wte"](idx)
         x = self.transformer["drop"](tok_emb)
-        for block in self.transformer["h"]:
+        for block in self.transformer["h"]:  # type: ignore
             x = block(x)
         x = self.transformer["rms_f"](x)
         logits = self.lm_head(x)  # (B, T, vocab_size)
@@ -228,14 +228,20 @@ class GBT(nn.Module):
         top_k=None,
         top_p=None,
         eos_id=None,
+        logits_processor=None,
     ):
         for _ in range(max_new_tokens):
             idx_cond = idx[:, -self.config.block_size :]
             logits, loss = self(idx_cond)  # (B, T, C)
             logits = logits[:, -1, :] / temperature  # (B, C)
+
+            if logits_processor is not None:
+                logits = logits_processor(idx, logits)
+
             if top_k is not None:
                 v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
                 logits[logits < v[:, [-1]]] = -float("Inf")
+
             if top_p is not None:
                 sorted_logits, sorted_indices = torch.sort(logits, descending=True)
                 cumulative_probs = torch.cumsum(

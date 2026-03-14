@@ -1,3 +1,0 @@
-name: sonnets_char_rhymes_last_word
-data_dir: "data/encoded/char/sonnets_rhymes_last_word"
-tokenizer_path: "data/encoded/char/sonnets_rhymes_last_word/vocab.json"

@@ -5,13 +5,12 @@ Clean and process raw sonnets, adding special tokens:
 - <END> at the end of each sonnet
 """
 
-import os
 import re
 from pathlib import Path
 
 import click
 
-from common.rhyme_utils import extract_rhyme_suffix
+from common.rhyme_utils import extract_rhyme_suffix, normalize_word
 
 replace_table = {
     "ä": "a",
@@ -34,6 +33,33 @@ replace_table = {
     "\xa0": " ",
     "“": "«",
     "”": "»",
+    "%": "",
+    "&": "e",
+    "*": "",
+    "=": "",
+    "_": "",
+    "|": "",
+    "~": "",
+    "©": "",
+    "\xad": "",
+    "¯": "",
+    "°": "'",
+    "³": "",
+    "·": "",
+    "€": "",
+    "„": "",
+    "ར": "",
+    "о": "o",
+    "п": "n",
+    "ə": "e",
+    "ɔ": "o",
+    "ı": "i",
+    "―": "—",
+    "ą": "o",
+    "ˇ": "",
+    "ç": "c",
+    "å": "a",
+    "E`": "È",
 }
 
 
@@ -57,7 +83,20 @@ def check_structure(text: str) -> bool:
     return True
 
 
-def tag_sonnet_rhymes(text, max_rhyme_length=2, include_last_word=False):
+def _assign_rhyme_letter(rhyme_map: dict[str, str], suffix_key: str, next_char: int):
+    max_rhyme_char = ord("G")
+    first_wrap_char = ord("C")
+
+    if suffix_key not in rhyme_map:
+        if next_char > max_rhyme_char:
+            next_char = first_wrap_char
+        rhyme_map[suffix_key] = chr(next_char)
+        next_char += 1
+
+    return rhyme_map[suffix_key], next_char
+
+
+def tag_sonnet_rhymes(text, include_rhyme_suffix=False):
     lines = text.split("\n")
     octave_rhyme_map = {}
     sestet_rhyme_map = {}
@@ -78,29 +117,33 @@ def tag_sonnet_rhymes(text, max_rhyme_length=2, include_last_word=False):
             tagged_lines.append(line)
             continue
 
-        words = line.split()
-        last_word = re.sub(r"[^\w]+$", "", words[-1]) or words[-1]
-        suffix = extract_rhyme_suffix(last_word, max_rhyme_length=max_rhyme_length)
+        clean_line = re.sub(r"[^\w\']+$", "", line)
+
+        words = clean_line.split()
+        if not words:
+            tagged_lines.append(line)
+            continue
+        last_word = words[-1]
+
+        suffix = extract_rhyme_suffix(last_word)
+        suffix_key = normalize_word(suffix)
 
         if split_octave_sestet_labels:
             if line_index < 8:
-                if suffix not in octave_rhyme_map:
-                    octave_rhyme_map[suffix] = chr(next_octave_char)
-                    next_octave_char += 1
-                rhyme_letter = octave_rhyme_map[suffix]
+                rhyme_letter, next_octave_char = _assign_rhyme_letter(
+                    octave_rhyme_map, suffix_key, next_octave_char
+                )
             else:
-                if suffix not in sestet_rhyme_map:
-                    sestet_rhyme_map[suffix] = chr(next_sestet_char)
-                    next_sestet_char += 1
-                rhyme_letter = sestet_rhyme_map[suffix]
+                rhyme_letter, next_sestet_char = _assign_rhyme_letter(
+                    sestet_rhyme_map, suffix_key, next_sestet_char
+                )
         else:
-            if suffix not in global_rhyme_map:
-                global_rhyme_map[suffix] = chr(next_global_char)
-                next_global_char += 1
-            rhyme_letter = global_rhyme_map[suffix]
+            rhyme_letter, next_global_char = _assign_rhyme_letter(
+                global_rhyme_map, suffix_key, next_global_char
+            )
 
-        if include_last_word:
-            tagged_line = f"<RHYME_{rhyme_letter}> {last_word} | {line}"
+        if include_rhyme_suffix:
+            tagged_line = f"<RHYME_{rhyme_letter}> {suffix} | {line}"
         else:
             tagged_line = f"<RHYME_{rhyme_letter}> {line}"
 
@@ -134,48 +177,44 @@ def tag_sonnet_rhymes(text, max_rhyme_length=2, include_last_word=False):
     "--mark-rhymes", is_flag=True, help="Mark rhyming words with special tokens"
 )
 @click.option(
-    "--include-last-word",
+    "--include-rhyme-suffix",
     is_flag=True,
-    help="Include the line's last word in the rhyme markings",
-)
-@click.option(
-    "--rhyme-length",
-    default=2,
-    show_default=True,
-    help="Number of characters to consider for rhyme detection",
+    help="Include the suffix of the last word in each line along with the rhyme token",
 )
 def main(
     data_dir: Path,
     out_dir: Path,
     include_title: bool,
     mark_rhymes: bool,
-    include_last_word: bool,
-    rhyme_length: int,
+    include_rhyme_suffix: bool,
 ):
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    filenames = sorted(fn for fn in os.listdir(data_dir) if fn.endswith(".txt"))
+    input_files = sorted(p for p in data_dir.rglob("*.txt") if p.is_file())
 
     c = 0
-    for filename in filenames:
-        with open(data_dir / filename, "r", encoding="utf-8") as f:
+    for input_file in input_files:
+        relative_path = input_file.relative_to(data_dir)
+        output_file = out_dir / relative_path
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(input_file, "r", encoding="utf-8") as f:
             text = f.read().strip()
             text = clean_text(text)
             if not check_structure(text):
-                print(f"Unusual structure in {filename}")
+                print(f"Unusual structure in {relative_path}")
             text = "\n\n<STANZA>\n\n".join(text.split("\n\n"))
             if include_title:
-                title = filename.replace(".txt", "")
+                title = input_file.stem
                 text = f"<TITLE>{title}</TITLE>\n\n{text}"
             text = "<SONNET>\n" + text + "\n<END>"
             if mark_rhymes:
                 text = tag_sonnet_rhymes(
                     text,
-                    max_rhyme_length=rhyme_length,
-                    include_last_word=include_last_word,
+                    include_rhyme_suffix=include_rhyme_suffix,
                 )
 
-        with open(out_dir / filename, "w", encoding="utf-8") as f:
+        with open(output_file, "w", encoding="utf-8") as f:
             f.write(text)
             c += 1
 

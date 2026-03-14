@@ -55,23 +55,23 @@ def test_tag_sonnet_rhymes():
     text = "\n".join(
         [
             "<SONNET>",
-            "Prima linea casa",
-            "Seconda linea sole",
-            "Terza linea sole",
-            "Quarta linea casa",
+            "Primo verso casa",
+            "Secondo verso sole",
+            "Terzo verso sole",
+            "Quarto verso casa",
             "",
             "<STANZA>",
-            "Quinta linea luna",
+            "Quinto verso luna",
             "<END>",
         ]
     )
 
-    tagged = postprocess.tag_sonnet_rhymes(text, max_rhyme_length=2)
+    tagged = postprocess.tag_sonnet_rhymes(text)
 
-    assert "<RHYME_A> Prima linea casa" in tagged
-    assert "<RHYME_B> Seconda linea sole" in tagged
-    assert "<RHYME_B> Terza linea sole" in tagged
-    assert "<RHYME_A> Quarta linea casa" in tagged
+    assert "<RHYME_A> Primo verso casa" in tagged
+    assert "<RHYME_B> Secondo verso sole" in tagged
+    assert "<RHYME_B> Terzo verso sole" in tagged
+    assert "<RHYME_A> Quarto verso casa" in tagged
     assert "<SONNET>" in tagged
     assert "<STANZA>" in tagged
     assert "<END>" in tagged
@@ -87,7 +87,7 @@ def test_tag_sonnet_rhymes_uses_separate_tercet_labels_for_14_lines():
         ]
     )
 
-    tagged = postprocess.tag_sonnet_rhymes(text, max_rhyme_length=2)
+    tagged = postprocess.tag_sonnet_rhymes(text)
 
     assert "<RHYME_A> uno casa" in tagged
     assert "<RHYME_B> due sole" in tagged
@@ -95,15 +95,13 @@ def test_tag_sonnet_rhymes_uses_separate_tercet_labels_for_14_lines():
     assert "<RHYME_D> dieci lume" in tagged
 
 
-def test_tag_sonnet_rhymes_with_include_last_word():
-    text = "\n".join(["<SONNET>", "Prima linea casa", "Seconda linea sole", "<END>"])
+def test_tag_sonnet_rhymes_with_suffix():
+    text = "\n".join(["<SONNET>", "Primo verso casa", "Secondo verso sole", "<END>"])
 
-    tagged = postprocess.tag_sonnet_rhymes(
-        text, max_rhyme_length=2, include_last_word=True
-    )
+    tagged = postprocess.tag_sonnet_rhymes(text, include_rhyme_suffix=True)
 
-    assert "<RHYME_A> casa | Prima linea casa" in tagged
-    assert "<RHYME_B> sole | Seconda linea sole" in tagged
+    assert "<RHYME_A> asa | Primo verso casa" in tagged
+    assert "<RHYME_B> ole | Secondo verso sole" in tagged
 
 
 def test_main_cli(tmp_path):
@@ -132,8 +130,6 @@ def test_main_cli(tmp_path):
             str(out_dir),
             "--include-title",
             "--mark-rhymes",
-            "--rhyme-length",
-            "2",
         ],
     )
 
@@ -150,7 +146,7 @@ def test_main_cli(tmp_path):
     assert output_text.count("<RHYME_") == 14
 
 
-def test_main_cli_with_include_last_word(tmp_path):
+def test_main_cli_with_include_suffix(tmp_path):
     raw_dir = tmp_path / "raw"
     out_dir = tmp_path / "out"
     raw_dir.mkdir()
@@ -175,9 +171,7 @@ def test_main_cli_with_include_last_word(tmp_path):
             "--out-dir",
             str(out_dir),
             "--mark-rhymes",
-            "--include-last-word",
-            "--rhyme-length",
-            "2",
+            "--include-rhyme-suffix",
         ],
     )
 

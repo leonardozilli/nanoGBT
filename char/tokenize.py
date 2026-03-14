@@ -46,10 +46,8 @@ def create_sonnets_dataset(data_dir) -> tuple[list[str], str]:
     text_content = ""
     sonnets = []
     lengths = []
-    for filename in os.listdir(data_dir):
-        if not filename.endswith(".txt"):
-            continue
-        with open(os.path.join(data_dir, filename), "r", encoding="utf-8") as f:
+    for filepath in sorted(Path(data_dir).rglob("*.txt")):
+        with open(filepath, "r", encoding="utf-8") as f:
             text = f.read()
             for token, char in SPECIAL_TOKEN_MAP.items():
                 text = text.replace(token, char)

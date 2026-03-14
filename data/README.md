@@ -1,4 +1,4 @@
-This directory contains the datasets and scripts for scraping, cleaning, and preprocessing sonnets for the nanoGBT model.
+This directory contains the datasets and scripts for scraping, cleaning, and preprocessing sonnets for use in training.
 
 ### 1. Scrape
 

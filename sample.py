@@ -44,16 +44,15 @@ def get_eos_id(
 
 @click.command()
 @click.option(
-    "--model",
+    "--checkpoint",
     "model_path",
     required=True,
     type=click.Path(exists=True, path_type=Path),
     help="Model checkpoint (.pt) or directory containing a checkpoint",
 )
 @click.option(
-    "--tokenizer-path",
-    "tokenizer_path",
     "--tokenizer",
+    "tokenizer_path",
     default="data/encoded/subw/tokenizer.json",
     show_default=True,
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
@@ -118,6 +117,8 @@ def main(
         raise click.ClickException(
             "Prompt is empty and tokenizer has no BOS token. Pass --prompt explicitly."
         )
+    else:
+        prompt_text = prompt.replace("\\n", "\n")
 
     input_ids = tokenizer.encode(prompt_text)
     context_tokens = torch.tensor([input_ids], dtype=torch.long, device=device)

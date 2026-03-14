@@ -86,7 +86,7 @@ def main(
 
             if not silent:
                 print(f"--- Sample {i + 1} ---")
-                print(generated_text)
+                print(tokenizer.decode(pred[0].tolist(), skip_special_tokens=False))
                 print("----------------\n")
 
     print("=" * 40)

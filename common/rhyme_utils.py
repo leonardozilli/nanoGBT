@@ -1,29 +1,36 @@
 import re
 import unicodedata
 
+ACCENTED_VOWELS = "àèéìíòóùú"
+PLAIN_VOWELS = "aeiou"
+
 
 def normalize_word(word: str):
-    clean_word = re.sub(r"[^\w\s\']", "", word).lower()
-    clean_word = unicodedata.normalize("NFD", clean_word)
-    return "".join(c for c in clean_word if unicodedata.category(c) != "Mn")
+    word = unicodedata.normalize("NFD", word)
+    word = re.sub(r"[^\w\s']", "", word)
+    word = "".join(c for c in word if unicodedata.category(c) != "Mn")
+    return word.lower()
 
 
-def extract_rhyme_suffix(word: str, max_rhyme_length: int = 2):
-    clean_word = normalize_word(word)
-    if not clean_word:
+def extract_rhyme_suffix(word: str) -> str:
+    original = re.sub(rf"[^\w\s'{ACCENTED_VOWELS}]", "", word.lower())
+    normalized = normalize_word(word)
+
+    if not normalized:
         return ""
 
-    for i in range(len(clean_word) - 1, -1, -1):
-        if clean_word[i] in "aeiou":
-            rhyme = clean_word[i:]
-            return rhyme[-max_rhyme_length:] if len(rhyme) > max_rhyme_length else rhyme
+    # if there's an accented vowel, use that
+    for i, c in enumerate(original):
+        if c in ACCENTED_VOWELS:
+            return original[i:]
 
-    return (
-        clean_word[-max_rhyme_length:]
-        if len(clean_word) >= max_rhyme_length
-        else clean_word
-    )
+    # if not, use the last vowel
+    vowel_indices = [i for i, c in enumerate(normalized) if c in PLAIN_VOWELS]
 
+    # if no vowels, return last 3 chars
+    if not vowel_indices:
+        return normalized[-3:]
 
-if __name__ == "__main__":
-    print(extract_rhyme_suffix("ccredote"))
+    start = vowel_indices[-2] if len(vowel_indices) >= 2 else vowel_indices[0]
+
+    return normalized[start:]
