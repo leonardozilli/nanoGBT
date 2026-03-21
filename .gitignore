@@ -10,7 +10,7 @@ wheels/
 .venv
 
 unsloth_compiled_cache/
-_unsloth_temporary_saved_buffers/
+_unsloth*/
 wandb/
 logs/
 
