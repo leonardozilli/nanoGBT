@@ -12,7 +12,9 @@ from common.tokenizer import load_tokenizer
     "--tokenizer-path", required=True, help="Path to vocab.json or spm_model.model"
 )
 @click.option(
-    "--tokenizer-type", type=click.Choice(["char", "unigram", "bpe"]), required=True
+    "--tokenizer-type",
+    type=click.Choice(["char", "syllable", "unigram", "bpe"]),
+    required=True,
 )
 @click.option(
     "--num-samples", default=10, help="Number of sonnets to generate and evaluate"
@@ -20,6 +22,11 @@ from common.tokenizer import load_tokenizer
 @click.option("--temperature", default=0.8, help="Generation temperature")
 @click.option("--top-k", default=40, help="Top-K sampling")
 @click.option("--top-p", default=0.9, help="Top-P (nucleus) sampling")
+@click.option(
+    "--strict",
+    is_flag=True,
+    help="If enabled, only count lines as valid if they have exactly 11 syllables, otherwise 10 and 12 syllables are also counted as valid",
+)
 @click.option("--silent", is_flag=True, help="Suppress generated text output")
 def main(
     checkpoint,
@@ -29,6 +36,7 @@ def main(
     temperature,
     top_k,
     top_p,
+    strict,
     silent,
 ):
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -51,8 +59,10 @@ def main(
         "valid_stanzas": 0,
         "total_stanzas": 0,
         "is_valid_sonnet": 0,
+        "valid_hendecasyllables": 0,
     }
 
+    total_lines = 0
     with torch.no_grad():
         for i in range(num_samples):
             context = torch.tensor([[bos_id]], dtype=torch.long, device=device)
@@ -69,12 +79,12 @@ def main(
             generated_text = tokenizer.decode(
                 pred[0].tolist(), skip_special_tokens=True
             )
-            generated_text = generated_text.replace("<NEWLINE>", "\n")
 
-            metrics = evaluate_structure(generated_text)
+            metrics = evaluate_structure(generated_text, strict=strict)
 
             if metrics["line_count"] == 0:
                 continue
+            total_lines += metrics["line_count"]
             if metrics["is_14_lines"]:
                 results["14_lines"] += 1
             if metrics["is_correct_structure"]:
@@ -83,10 +93,15 @@ def main(
             results["total_stanzas"] += metrics["total_stanzas"]
             if metrics["is_valid_sonnet"]:
                 results["is_valid_sonnet"] += 1
+            results["valid_hendecasyllables"] += metrics["valid_hendecasyllables"]
 
             if not silent:
                 print(f"--- Sample {i + 1} ---")
-                print(tokenizer.decode(pred[0].tolist(), skip_special_tokens=False))
+                print(
+                    tokenizer.decode(
+                        pred[0].tolist(), skip_special_tokens=False
+                    ).replace("<NEWLINE>", "\n")
+                )
                 print("----------------\n")
 
     print("=" * 40)
@@ -98,6 +113,9 @@ def main(
     )
     print(
         f"Valid stanzas:     {results['valid_stanzas']}/{results['total_stanzas']} ({(results['valid_stanzas'] / results['total_stanzas']) * 100:.1f}%)"
+    )
+    print(
+        f"Valid Hendecasyllables: {results['valid_hendecasyllables']}/{total_lines} ({(results['valid_hendecasyllables'] / total_lines) * 100:.1f}%)"
     )
     print(
         f"Valid Sonnets:     {results['is_valid_sonnet']}/{num_samples} ({(results['is_valid_sonnet'] / num_samples) * 100:.1f}%)"

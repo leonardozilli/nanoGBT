@@ -5,7 +5,10 @@ from pathlib import Path
 
 from tokenizers import Tokenizer
 
-RHYME_MARKING_RE = re.compile(r"(?m)^[Ⓐ-Ⓩ][ \t]+[^|\n]*\|[ \t]*")
+from syllable.syllabify import syllabify_text
+
+RHYME_MARKING_RE_CHAR = re.compile(r"(?m)^[Ⓐ-Ⓩ][ \t]+[^|\n]*\|[ \t]*")
+RHYME_MARKING_RE_SYLLABLE = re.compile(r"(?m)^<RHYME_[A-Z]>\w+\|\s*")
 
 SPECIAL_TOKENS = {
     "BOS": "<SONNET>",
@@ -54,7 +57,52 @@ class CharTokenizer:
         text = "".join(self.itos[i] for i in batch)
 
         if skip_special_tokens:
-            text = RHYME_MARKING_RE.sub("", text)
+            text = RHYME_MARKING_RE_CHAR.sub("", text)
+            tokens_to_strip = {
+                token for name, token in self.special_tokens.items() if name != "SEP"
+            }
+            for token in tokens_to_strip:
+                text = text.replace(token, "")
+
+            return text
+
+        return text
+
+
+class SyllableTokenizer:
+    def __init__(self, path: str | None = None):
+        self.kind = "syllable"
+        self.path = path
+        self.special_tokens = {}
+        self.itos = {}
+        self.stoi = {}
+        self.vocab_size = 0
+
+        if path:
+            with open(path, "r") as f:
+                vocab = json.load(f)
+
+            self.special_tokens = vocab["special_tokens"]
+            self.itos = {int(k): v for k, v in vocab["itos"].items()}
+            self.stoi = vocab["stoi"]
+            self.vocab_size = len(self.itos)
+
+    def encode(self, text: str):
+        return [self.stoi[syl] for syl in syllabify_text(text) if syl in self.stoi]
+
+    def get_token_id(self, token: str) -> int:
+        return self.stoi.get(
+            token, self.stoi.get(self.special_tokens.get("UNK", ""), -1)
+        )
+
+    def decode(self, batch: list, skip_special_tokens: bool = True):
+        if isinstance(batch, int):
+            batch = [batch]
+
+        text = "".join(self.itos[i] for i in batch)
+
+        if skip_special_tokens:
+            text = RHYME_MARKING_RE_SYLLABLE.sub("", text)
             tokens_to_strip = {
                 token for name, token in self.special_tokens.items() if name != "SEP"
             }
@@ -138,10 +186,10 @@ class UnigramTokenizer:
 
 def load_tokenizer(
     tokenizer_path: Path, tokenizer_type: str
-) -> CharTokenizer | BPETokenizer | UnigramTokenizer:
+) -> CharTokenizer | SyllableTokenizer | BPETokenizer | UnigramTokenizer:
     tokenizer_path_str = str(tokenizer_path)
 
-    valid_tokenizer_types = {"char", "bpe", "unigram", "auto"}
+    valid_tokenizer_types = {"char", "syllable", "bpe", "unigram", "auto"}
     if tokenizer_type not in valid_tokenizer_types:
         raise ValueError(
             "Invalid tokenizer_type "
@@ -150,6 +198,8 @@ def load_tokenizer(
 
     if tokenizer_type == "char":
         return CharTokenizer(tokenizer_path_str)
+    if tokenizer_type == "syllable":
+        return SyllableTokenizer(tokenizer_path_str)
     if tokenizer_type == "bpe":
         return BPETokenizer(tokenizer_path_str)
     if tokenizer_type == "unigram":

@@ -1,0 +1,29 @@
+defaults:
+  - _self_
+  - dataset: sonnets
+
+model:
+  block_size: 256
+  n_embd: 384
+  n_layer: 8
+  n_head: 6
+  dropout: 0.3
+
+training:
+  batch_size: 16
+  learning_rate: 3e-4
+  weight_decay: 0.1
+  max_steps: 5000
+  warmup_steps: 100
+  early_stop_patience: 400
+  checkpointing_steps: 6000
+  device: "cuda"
+  trace: true
+
+notes: ""
+
+seed: 42
+
+hydra:
+  run:
+    dir: outputs/syllable/${dataset.name}/${now:%Y-%m-%d}/${now:%H-%M-%S}

@@ -7,6 +7,7 @@ from common.model import GBT
 from common.tokenizer import (
     BPETokenizer,
     CharTokenizer,
+    SyllableTokenizer,
     UnigramTokenizer,
     load_tokenizer,
 )
@@ -31,7 +32,7 @@ def normalize_top_p(top_p: float) -> float | None:
 
 
 def get_eos_id(
-    tokenizer: CharTokenizer | BPETokenizer | UnigramTokenizer,
+    tokenizer: CharTokenizer | SyllableTokenizer | BPETokenizer | UnigramTokenizer,
 ) -> int | None:
     eos_token = tokenizer.special_tokens.get("EOS")
     if not eos_token:
@@ -60,7 +61,9 @@ def get_eos_id(
 )
 @click.option(
     "--tokenizer-type",
-    type=click.Choice(["auto", "char", "bpe", "unigram"], case_sensitive=False),
+    type=click.Choice(
+        ["auto", "char", "syllable", "bpe", "unigram"], case_sensitive=False
+    ),
     default="auto",
     show_default=True,
     help="Tokenizer type (auto infers from file name)",

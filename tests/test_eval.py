@@ -27,23 +27,23 @@ def _build_sonnet_from_scheme(scheme: str) -> str:
 
 def test_evaluate_structure_valid_sonnet():
     text = """<SONNET>
-    Che ffior de Papa creeno! Accidenti!
-    Co rrispetto de lui pare er Cacamme.
-    Bbella galanteria da tate e mmamme
-    pe ffà bbobo a li fijji impertinenti!
+    Te lo saressi creso, eh Gurgumella,
+    ch’er zor paìno, er zor dorce-me-frega,
+    che mmanco ha ffiato per annà a bbottega,
+    potessi slargà er buscio a ’na zitella?
 
-    Ha un erpeto pe ttutto, nun tiè ddenti,
-    è gguercio, je strascineno le gamme,
-    spènnola da una parte, e bbuggiaramme
-    si arriva a ffà la pacchia a li parenti.
+    Tu nu lo sai ch’edè sta marachella;
+    tutta farina de quell’antra strega.
+    Mo che nun trova lei chi jje la sega,
+    fa la ruffiana de la su’ sorella.
 
-    Guarda llí cche ffigura da vienicce
-    a ffà da Crist’in terra! Cazzo matto
-    imbottito de carne de sarcicce!
+    Io sarebbe omo, corpo de l’abbrei,
+    senza mettécce né ssale né ojjo,
+    de dàjjene tre vorte trentasei:
 
-    Disse bbene la serva de l’Oreficce
-    quanno lo vedde in chiesa: cianno fatto matto
-    un gran brutto strucchione de Ponteficce.
+    ma nun vojo piú affríggeme nun vojjo;
+    che de donne pe ddio come che llei
+    ’ggni monnezzaro me ne dà un pricojjo.
     """
 
     metrics = evaluate_structure(text)
@@ -52,9 +52,41 @@ def test_evaluate_structure_valid_sonnet():
     assert metrics["is_correct_structure"] is True
     assert metrics["valid_stanzas"] == 4
     assert metrics["total_stanzas"] == 4
-    assert metrics["is_valid_sonnet"] is True
     assert metrics["line_count"] == 14
     assert metrics["rhyme_lines"] == 14
+    assert metrics["is_valid_sonnet"] is True
+
+
+def test_evaluate_structure_valid_sonnet_not_strict():
+    text = """<SONNET>
+    Jeri, all’orloggio de la Cchiesa Nova,
+    fra Luca incontrò Agnesa co la brocca.
+    Dice: «Beato lui», dice, «a chi tocca»,
+    dice, «e nun sa ch’edè chi nu lo prova».
+
+    Risponne lei, dice: «Chi cerca, trova;
+    ma a me», dice, «puliteve la bocca».
+    «Aùh», dicéee... «e perché nun te fai biocca?»
+    «Eh», dice, «e chi me mette sotto l’ova?»
+
+    «Ce n’ho io», dice, «un paro fresche vive»,
+    dice, «e ttamante, e tutt’e ddua ’ngallate:
+    le vôi sperà si ssò bbone o ccattive?»
+
+    Checco, te pensi che nun l’ha pijjate?
+    Ah llei pe nnun sapé legge né scrive,
+    ha vorzuto assaggià l’ova der frate.
+    """
+
+    metrics = evaluate_structure(text, strict=False)
+
+    assert metrics["is_14_lines"] is True
+    assert metrics["is_correct_structure"] is True
+    assert metrics["valid_stanzas"] == 4
+    assert metrics["total_stanzas"] == 4
+    assert metrics["line_count"] == 14
+    assert metrics["rhyme_lines"] == 14
+    assert metrics["is_valid_sonnet"] is True
 
 
 def test_evaluate_structure_invalid_sonnet():

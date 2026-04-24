@@ -20,9 +20,9 @@ dependencies = [
     "pytest>=9.0.2",
     "sentencepiece>=0.2.1",
     "unsloth>=2026.3.7",
-    "huggingface-hub==0.34.0"
+    "huggingface-hub==0.34.0",
 ]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["common*", "char*", "subw*"]
+include = ["common*", "char*", "subw*", "syllable*"]

@@ -1,6 +1,8 @@
+import re
 from collections import Counter
 
 from common.rhyme_utils import extract_rhyme_suffix
+from syllable.syllabify import syllabify_text
 
 ALLOWED_OCTAVE_PATTERNS = {"ABBAABBA", "ABABABAB", "ABBABAAB", "ABABBABA"}
 ALLOWED_SESTET_PATTERNS = {"ABABAB", "ABAABA", "ABCABC", "ABCBAC", "ABCACB"}
@@ -22,7 +24,37 @@ def _pattern_signature(sequence: str):
     return "".join(signature)
 
 
-def evaluate_structure(text):
+def strip_rhyme_metadata(line: str) -> str:
+    match = re.match(r"^[a-z].+\|\s+(.*)$", line.strip())
+
+    if match:
+        return match.group(1)
+    return line
+
+
+def is_syllable(token: str) -> bool:
+    token = token.strip()
+    if not token or token.isspace():
+        return False
+
+    # verify that it's an actual syllable token
+    alpha_check = re.sub(r"[^A-Za-zÀ-Ōà-ō]", "", token)
+    return len(alpha_check) > 0
+
+
+def is_valid_hendecasyllable(line: str, strict: bool = False) -> bool:
+    clean_line = strip_rhyme_metadata(line)
+    syllables = syllabify_text(clean_line)
+    syllables = [syl for syl in syllables if is_syllable(syl)]
+    syllable_count = sum(
+        1 for syl in syllables if syl.strip() and not syl.startswith("<")
+    )
+    if strict:
+        return syllable_count == 11
+    return 10 <= syllable_count <= 12
+
+
+def evaluate_structure(text, strict: bool = False) -> dict:
     text = text.replace("<SONNET>", "").replace("<END>", "").strip()
     text = text.replace("<NEWLINE>", "\n")
 
@@ -48,6 +80,7 @@ def evaluate_structure(text):
     rhyme_map = {}
     current_char = ord("A")
     scheme = []
+    valid_hendecasyllables = 0
     for line in lines:
         words = line.split()
         if not words:
@@ -57,6 +90,8 @@ def evaluate_structure(text):
             rhyme_map[suffix] = chr(current_char)
             current_char += 1
         scheme.append(rhyme_map[suffix])
+        if is_valid_hendecasyllable(line, strict=strict):
+            valid_hendecasyllables += 1
 
     rhyme_counts = Counter(scheme)
     rhyme_lines = sum(v for v in rhyme_counts.values() if v > 1)
@@ -79,7 +114,7 @@ def evaluate_structure(text):
     is_valid_stanzas = is_14_lines and total_stanzas == 4 and valid_stanzas == 4
 
     is_valid_sonnet = False
-    if is_14_lines and len(scheme) == 14:
+    if is_14_lines and len(scheme) == 14 and valid_hendecasyllables == 14:
         octave_pattern = _pattern_signature("".join(scheme[:8]))
         sestet_pattern = _pattern_signature("".join(scheme[8:]))
         if (
@@ -97,4 +132,5 @@ def evaluate_structure(text):
         "is_valid_sonnet": is_valid_sonnet,
         "rhyme_lines": rhyme_lines,
         "line_count": line_count,
+        "valid_hendecasyllables": valid_hendecasyllables,
     }
